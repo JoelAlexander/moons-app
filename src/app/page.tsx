@@ -13,7 +13,7 @@ export default function Page() {
         </aside>
         <main className="flex flex-col space-x-4">
           <p className="text-body text-white mb-4">
-            This is a demo app that showcases the OnchainKit components in a
+            Joel demo app that showcases the OnchainKit components in a
             simple interface. The app is built with Next.js and Tailwind CSS.
           </p>
           <p className="text-body text-white">Useful links:</p>
