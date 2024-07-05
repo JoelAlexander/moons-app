@@ -1,5 +1,5 @@
 import { NEXT_PUBLIC_URL } from '../config';
-import OnchainProviders from '../components/OnchainProviders';
+import Page from './page';
 import type { Metadata } from 'next';
 
 import './global.css';
@@ -11,11 +11,11 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'An Onchain App in 100 Components',
-  description: 'LFG',
+  title: 'Moons',
+  description: '',
   openGraph: {
-    title: 'An Onchain App in 100 Components',
-    description: 'LFG',
+    title: '',
+    description: '',
     images: [`${NEXT_PUBLIC_URL}/vibes/vibes-19.png`],
   },
 };
@@ -26,7 +26,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="flex items-center justify-center">
-        <OnchainProviders>{children}</OnchainProviders>
+        <div className="flex flex-col w-96 md:w-[600px]">
+          {children}
+        </div>
       </body>
     </html>
   );
