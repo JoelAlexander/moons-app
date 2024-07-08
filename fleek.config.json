@@ -1,9 +1,0 @@
-{
-  "sites": [
-    {
-      "slug": "puny-kilobyte-purring",
-      "distDir": "out",
-      "buildCommand": "npm install && npm run build"
-    }
-  ]
-}

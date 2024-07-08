@@ -1,5 +1,4 @@
-import { NEXT_PUBLIC_URL } from '../config';
-import Page from './page';
+import { NEXT_PUBLIC_URL } from './config';
 import type { Metadata } from 'next';
 
 import './global.css';
