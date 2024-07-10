@@ -1,31 +1,19 @@
-import React from 'react';
-import { BYORPC, useRpcProvider } from './byorpc';
+import React, { useEffect, useState } from 'react';
+import { useRpcProvider } from './byorpc';
+import { Address } from 'viem';
 
 export default function Page() {
-  const { provider, client } = useRpcProvider()!!;
-
-  const connect = async () => {
-    await provider?.connect();
-  };
+  const { provider, walletClient, publicClient, address } = useRpcProvider()!!;
 
   const signMessage = async () => {
-    const account = client?.account;
-    if (!account || !account.signMessage) return;
-    await account!!.signMessage!!({
-      message: 'hello world'
-    });
-  };
-
-  if (!client?.account) {
-    return (
-      <button onClick={connect}>Connect Wallet</button>
-    );
+    if (!address) return
+    await walletClient.signMessage({ account: address, message: 'hello-world' })
   }
 
   return (
     <div>
-      <div>Connected: {client?.account?.address}</div>
+      <div>Connected: {address}</div>
       <button onClick={signMessage}>Sign Message</button>
     </div>
-  );
+  )
 }

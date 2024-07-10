@@ -1,65 +1,91 @@
-/* stylelint-disable custom-property-pattern */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  /* Palette */
-  --palette-bg-black: rgb(21, 26, 38);
-  --palette-bg-white: #fff;
-
-  /* Indicates that the element can be rendered using 
-   * the operating system dark color scheme. 
-   * https://developer.mozilla.org/en-US/docs/Web/CSS/color-scheme */
-  color-scheme: dark;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html {
-  height: 100%;
-  scroll-behavior: smooth;
-}
-
-html .font-robotoMono {
-  font-family: var(--font-roboto-mono);
-}
-
-html .font-inter {
-  font-family: var(--font-inter);
-}
-
+/* General Styles */
 body {
-  height: 100%;
+  font-family: Arial, sans-serif;
+  background-color: #FAF3E0; /* Beige sepia */
+  color: #4A4A4A; /* Moon grey */
   margin: 0;
-  background-color: var(--palette-bg-black);
-  color: var(--palette-bg-white);
-  font-family: Inter, sans-serif;
-  overflow-x: hidden;
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+  padding: 0;
 }
 
-a {
+/* Heading Styles */
+h1 {
+  font-size: 2.5em;
+  color: #3E3E3E;
+  margin-bottom: 0.5em;
+}
+
+h2 {
+  font-size: 2em;
+  color: #555555;
+  margin-bottom: 0.5em;
+}
+
+/* Body Text Styles */
+p {
+  font-size: 1em;
+  line-height: 1.5;
+  color: #4A4A4A;
+}
+
+/* Top Bar Styles */
+.top-bar {
+  background-color: #D3B58F; /* Light grey */
+  padding: 1em;
+  display: flex;
+  justify-content: left;
+  align-items: center;
+}
+
+.top-bar .network, .top-bar .rpc {
+  font-size: 1em;
+  color: #333333;
+  margin-right: 0.5em;
+}
+
+.top-bar .rpc span {
+  cursor: pointer;
   text-decoration: underline;
 }
 
-svg {
-  display: block;
-  overflow: visible;
-  vertical-align: middle;
+.top-bar .edit-rpc input {
+  padding: 0.5em;
+  font-size: 1em;
+  margin-right: 0.5em;
 }
 
-ul {
-  padding-inline-start: 0;
+.top-bar .edit-rpc button {
+  padding: 0.5em 1em;
+  font-size: 1em;
+  margin-right: 0.5em;
 }
 
-/* stylelint-disable-next-line */
-#__next {
-  position: relative;
-  z-index: 0;
+.top-bar .error {
+  color: #773333;
+  margin-top: 0.5em;
+}
+
+/* Message Styles */
+.message {
+  font-size: 1.5em;
+  color: #4A4A4A;
+  padding: 2em;
+  text-align: center;
+}
+
+/* Button Styles */
+button {
+  background-color: #4A90E2;
+  color: #FFFFFF;
+  border: none;
+  padding: 0.5em 1em;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:disabled {
+  background-color: #CCCCCC;
+}
+
+button:hover:not(:disabled) {
+  background-color: #357ABD;
 }
