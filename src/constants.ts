@@ -1,0 +1,1 @@
+export const WC_PROJECT_ID: string = "4f0f56872ba068cb3260c517ff17a48e"

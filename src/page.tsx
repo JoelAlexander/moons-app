@@ -1,46 +1,31 @@
-import { ReactNode, useState, useEffect } from 'react';
-import { base } from 'viem/chains';
-import { MOONS_ABI, MOONS_BYTECODE } from './moons';
-import { EthereumProvider } from '@walletconnect/ethereum-provider';
-import { type Address, createWalletClient, custom } from 'viem';
-
-const projectId = '4f0f56872ba068cb3260c517ff17a48e';
-
-const provider = await EthereumProvider.init({
-  rpcMap: { [base.id]: `https://api.developer.coinbase.com/rpc/v1/base/Nx5XG01kOYAO0VgHbSHHuYAHYrzlzceu`},
-  chains: [1],
-  projectId,
-  showQrModal: true,
-});
-
-const walletClient = createWalletClient({
-  chain: base,
-  transport: custom(provider),
-});
+import React from 'react';
+import { BYORPC, useRpcProvider } from './byorpc';
 
 export default function Page() {
-  const [account, setAccount] = useState<Address>();
+  const { provider, client } = useRpcProvider()!!;
 
   const connect = async () => {
-    await provider.connect();
-    const [address] = await walletClient.getAddresses();
-    setAccount(address);
+    await provider?.connect();
   };
 
   const signMessage = async () => {
-    if (!account) return;
-    await walletClient.signMessage({
-      account,
-      message: 'hello world',
+    const account = client?.account;
+    if (!account || !account.signMessage) return;
+    await account!!.signMessage!!({
+      message: 'hello world'
     });
   };
 
-  if (account)
+  if (!client?.account) {
     return (
-      <>
-        <div>Connected: {account}</div>
-        <button onClick={signMessage}>Sign Message</button>
-      </>
+      <button onClick={connect}>Connect Wallet</button>
     );
-  return <button onClick={connect}>Connect Wallet</button>;
+  }
+
+  return (
+    <div>
+      <div>Connected: {client?.account?.address}</div>
+      <button onClick={signMessage}>Sign Message</button>
+    </div>
+  );
 }
