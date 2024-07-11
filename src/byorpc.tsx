@@ -6,14 +6,12 @@ import { WC_PROJECT_ID } from './constants';
 import EthereumProvider from 'node_modules/@walletconnect/ethereum-provider/dist/types/EthereumProvider';
 
 const RpcProviderContext = createContext<{
-    provider: EthereumProvider,
     publicClient: PublicClient,
     walletClient: WalletClient,
     address: Address
 } | null>(null);
 
 export function useRpcProvider(): {
-    provider: EthereumProvider,
     publicClient: PublicClient,
     walletClient: WalletClient,
     address: Address
@@ -147,7 +145,7 @@ export function BYORPC({ children }: { children: ReactNode | ReactNode[] }) {
   }
 
   return (
-    <RpcProviderContext.Provider value={{ provider: provider!!, walletClient: walletClient!!, publicClient: publicClient!!, address }}>
+    <RpcProviderContext.Provider value={{ walletClient: walletClient!!, publicClient: publicClient!!, address }}>
       {renderTopBar()}
       {children}
     </RpcProviderContext.Provider>

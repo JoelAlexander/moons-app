@@ -1,13 +1,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import Page from './page';
+import App from './app';
 import { BYORPC } from './byorpc';
-import './index.css'; // if you have global styles
+import './index.css';
 
 const container = document.getElementById('app');
 const root = createRoot(container!!);
-root.render(
-  <BYORPC>
-    <Page />
-  </BYORPC>
-);
+root.render(<BYORPC><App /></BYORPC>);
