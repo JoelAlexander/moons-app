@@ -131,6 +131,7 @@ export function BYORPC({ children }: { children: ReactNode | ReactNode[] }) {
       )}
       {(!address && provider && !provider.connecting) && <button onClick={connect}>Connect Wallet</button>}
       {address && <button onClick={disconnect}>Disconnect Wallet</button>}
+      {address && <p>{address}</p>}
       {error && <div className="error">{error}</div>}
     </div>
   );
