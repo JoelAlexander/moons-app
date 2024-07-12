@@ -180,7 +180,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   }
 
   const handleEvent = (eventType: string, log: Log) => {
-    setEventFeed(prevFeed => [`${eventType}\n${JSON.stringify(log["args"], (_, value) =>
+    setEventFeed(prevFeed => [`${eventType}\n${JSON.stringify(log, (_, value) =>
       typeof value === 'bigint'
           ? value.toString()
           : value
