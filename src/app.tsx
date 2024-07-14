@@ -1,10 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { useRpcProvider } from './byorpc'
+import { useRpcProvider } from './loader'
 import { QRCodeSVG } from 'qrcode.react'
-import { Address, isAddress, getContract, encodeDeployData, Log } from 'viem'
+import { Address, isAddress, getContract, encodeDeployData, Log, Client } from 'viem'
 import { ERC20_ABI, USDC_ADDRESS } from './constants'
 import { MOONS_ABI, MOONS_BYTECODE } from './moons'
 import { base } from 'viem/chains'
+
+function formatUSDC(amount: bigint): string {
+  const usdcDecimals = 6n; // USDC has 6 decimal places
+  const factor = 10n ** usdcDecimals;
+  const integerPart = amount / factor;
+  const fractionalPart = amount % factor;
+
+  const fractionalString = fractionalPart.toString().padStart(Number(usdcDecimals), '0').slice(0, 2);
+  return `${integerPart.toString()}.${fractionalString}`;
+}
 
 const ContractList = ({ contracts, onSelectContract, onImport, onDeploy, onRemove }: { contracts: Address[], onSelectContract: (address: Address) => void, onImport: () => void, onDeploy: () => void, onRemove: (address: Address) => void }) => {
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
@@ -86,7 +96,7 @@ const ImportMoons = ({ onAddContract }: { onAddContract: (address: Address) => v
 }
 
 const Moons = ({ selectedContract } : { selectedContract: Address }) => {
-  const { publicClient, address, walletClient } = useRpcProvider()
+  const { address, publicClient, walletClient } = useRpcProvider()
   const [userUsdcBalance, setUserUsdcBalance] = useState<bigint>(BigInt(0))
   const [contractUsdcBalance, setContractUsdcBalance] = useState<bigint>(BigInt(0))
   const [admins, setAdmins] = useState<Address[]>([])
@@ -114,7 +124,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     moonsContract.read.getAdmins().then(adminsResponse => {
       const [admins, ranks]: [Address[], BigInt[]] = (adminsResponse as [Address[], BigInt[]])
       setAdmins(admins)
-      setIsAdmin(admins.includes(address))
+      setIsAdmin(admins.includes(address || '0x'))
     })
   }
 
@@ -302,10 +312,10 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         <QRCodeSVG value={selectedContract} />
       </div>
       <div>Contract Address: {selectedContract}</div>
-      <div>Moons USDC: {`${contractUsdcBalance}`}</div>
-      <div>User USDC: {`${userUsdcBalance}`}</div>
+      <div>Moons USDC: {`${formatUSDC(contractUsdcBalance)}`}</div>
+      <div>User USDC: {`${formatUSDC(userUsdcBalance)}`}</div>
       <div>Current Cycle: {`${currentCycle}`}</div>
-      <div>Maximum Allowed Disbursement: {`${maximumAllowedDisbursement}`}</div>
+      <div>Maximum Allowed Disbursement: {`${formatUSDC(maximumAllowedDisbursement)}`}</div>
 
       {isAdmin && (
         <>
@@ -357,6 +367,8 @@ const App = () => {
   const [contracts, setContracts] = useState<Address[]>([])
   const [selectedContract, setSelectedContract] = useState<Address>('0x')
   const [error, setError] = useState('')
+
+  useEffect(() => {})
 
   useEffect(() => {
     const storedContracts = JSON.parse(localStorage.getItem('contracts') || '[]')

@@ -7,12 +7,15 @@
     "start": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.51.1",
     "@walletconnect/ethereum-provider": "^2.13.3",
     "autoprefixer": "^10.4.19",
     "qrcode.react": "^3.1.0",
     "react": "^18",
     "react-dom": "^18",
-    "viem": "^2.17.2"
+    "viem": "^2.17.2",
+    "vite-plugin-node-polyfills": "^0.22.0",
+    "wagmi": "^2.10.10"
   },
   "devDependencies": {
     "@types/node": "^20.11.8",
