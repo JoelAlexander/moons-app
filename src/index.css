@@ -1,8 +1,8 @@
 /* General Styles */
 body {
   font-family: Arial, sans-serif;
-  background-color: #FAF3E0; /* Beige sepia */
-  color: #4A4A4A; /* Moon grey */
+  background-color: #060809;
+  color: #F6F1D5;
   margin: 0;
   padding: 0;
 }
@@ -20,16 +20,13 @@ h2 {
   margin-bottom: 0.5em;
 }
 
-/* Body Text Styles */
 p {
   font-size: 1em;
-  line-height: 1.5;
-  color: #4A4A4A;
+  color: #3E3E3E;
 }
 
-/* Top Bar Styles */
 .top-bar {
-  background-color: #D3B58F; /* Light grey */
+  background-color: #bac0c2;
   padding: 1em;
   display: flex;
   justify-content: left;
@@ -38,7 +35,7 @@ p {
 
 .top-bar .network, .top-bar .rpc {
   font-size: 1em;
-  color: #333333;
+  color: #000000;
   margin-right: 0.5em;
 }
 
@@ -67,7 +64,7 @@ p {
 /* Message Styles */
 .message {
   font-size: 1.5em;
-  color: #4A4A4A;
+  color: #e8eced;
   padding: 2em;
   text-align: center;
 }
@@ -75,7 +72,9 @@ p {
 /* Button Styles */
 button {
   background-color: #4A90E2;
-  color: #FFFFFF;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  color: #e8eced;
   border: none;
   padding: 0.5em 1em;
   cursor: pointer;

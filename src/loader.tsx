@@ -4,7 +4,7 @@ import { EthereumProvider as EthereumProviderFactory } from '@walletconnect/ethe
 import { http, createPublicClient, createWalletClient, custom, type WalletClient, type PublicClient, Chain, Address } from 'viem';
 import { WC_PROJECT_ID } from './constants';
 import EthereumProvider from 'node_modules/@walletconnect/ethereum-provider/dist/types/EthereumProvider';
-import { createConfig, useAccount, useChainId, useChains, useConnect, useDisconnect, usePublicClient, useSwitchChain, useWalletClient, WagmiProvider } from 'wagmi';
+import { createConfig, useAccount, useChainId, useChains, useConnect, useConnectorClient, useDisconnect, usePublicClient, useSwitchChain, useWalletClient, WagmiProvider } from 'wagmi';
 import { base as baseWagmi } from 'wagmi/chains';
 import { Config } from 'wagmi';
 
@@ -27,15 +27,17 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
   const { disconnect: disconnectWallet } = useDisconnect()
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
+  const connectorClient = useConnectorClient()
   const { address } = useAccount()
   const { chains, switchChain } = useSwitchChain()
+  const [showWalletOptions, setShowWalletOptions] = useState(false)
 
   const verifySwitchedToChain = () => {
     walletClient?.getChainId()
     .then((chainId) => {
       console.log(`ChainID: ${chainId}`);
-      if (chainId !== baseWagmi.id) {
-        console.log(`Switching to ${baseWagmi.id}`)
+      if (chainId !== base.id) {
+        console.log(`Switching to ${base.id}`)
         switchChain({ chainId: base.id })
       }
     })
@@ -44,7 +46,7 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
   useEffect(() => {
     const intervalId = setInterval(() => {
       verifySwitchedToChain()
-    }, 3000);
+    }, 4000);
     return () => clearInterval(intervalId);
   }, [walletClient]);
 
@@ -121,17 +123,8 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
   //   setUserPendingRpcUrl('')
   // }
 
-  const connect = async () => {
-    // if (!provider) return
-    // console.log("Connecting!")
-    // await provider.connect().then(() => {
-    //   if (!walletClient) return
-    //   return walletClient.getAddresses().then(([first, ..._]) => {
-    //     setAddress(first)
-    //     console.log(`Connected to wallet ${first}`)
-    //   })
-    // })
-    connectWallet({chainId: baseWagmi.id, connector: connectors[0]})
+  const beginConnect = () => {
+    setShowWalletOptions(true)
   }
 
   const disconnect = async () => {
@@ -141,11 +134,20 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
     //   setAddress('')
     //   console.log("Disconnected!")
     // })
-    disconnectWallet({connector: connectors[0]})
+    disconnectWallet()
   }
 
+  const walletOptions = connectors.map((connector) => (
+    <button key={connector.uid} onClick={() => {
+      setShowWalletOptions(false)
+      connectWallet({ connector })
+    }}>
+      {connector.name}
+    </button>
+  ))
+
   const renderTopBar = () => (
-    <div className="top-bar">
+    <div className="top-bar" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
       {/* <div className="network">🌐 {base.name}</div>
       <div className="rpc">
         {!isEditing &&
@@ -159,9 +161,15 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
           <button onClick={handleStopEditing}>Cancel</button>
         </div>
       )} */}
-      {(!address) && <button onClick={connect}>Connect Wallet</button>}
-      {address && <button onClick={disconnect}>Disconnect Wallet</button>}
-      {address && <p>{address}</p>}
+      <div>
+        <h1 style={{ fontFamily: 'monospace'}}>🌙 Moons</h1>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'row'}}>
+        {!address && !showWalletOptions && <button onClick={beginConnect}>Connect Wallet</button>}
+        {!address && showWalletOptions && walletOptions}
+        {address && <p>{address}</p>}
+        {address && <button onClick={disconnect}>Disconnect Wallet</button>}
+      </div>
     </div>
   );
 
@@ -169,7 +177,7 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
     return (
       <>
         {renderTopBar()}
-        <div className="message">Connect to a network and wallet to continue</div>
+        <div className="message">Connect to a wallet to continue</div>
       </>
     );
   }

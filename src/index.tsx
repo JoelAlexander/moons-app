@@ -7,16 +7,23 @@ import { http, createPublicClient, createWalletClient, custom, type WalletClient
 import { base } from 'wagmi/chains';
 import { createConfig, WagmiProvider } from 'wagmi';
 import './index.css';
-import { coinbaseWallet } from 'wagmi/connectors';
+import { coinbaseWallet, walletConnect } from 'wagmi/connectors';
 
 const queryClient = new QueryClient()
-const coinbaseWalletConnector = coinbaseWallet({ appName: 'Moons Protocol' })
+
+const coinbaseWalletConnector =
+    coinbaseWallet({ appName: 'Moons Protocol', version: '3', chainId: base.id })
+
+const walletConnectConnector =
+    walletConnect({ projectId: '4f0f56872ba068cb3260c517ff17a48e' })
+
 const config = createConfig({
     chains: [ base ],
     transports: {
         [base.id]: http(base.rpcUrls.default.http[0])
     },
-    connectors: [coinbaseWalletConnector]
+    connectors: [coinbaseWalletConnector, walletConnectConnector],
+    
   })
   
 declare module 'wagmi' {

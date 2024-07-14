@@ -5,6 +5,7 @@ import { Address, isAddress, getContract, encodeDeployData, Log, Client } from '
 import { ERC20_ABI, USDC_ADDRESS } from './constants'
 import { MOONS_ABI, MOONS_BYTECODE } from './moons'
 import { base } from 'viem/chains'
+import SineWave from './sine'
 
 function formatUSDC(amount: bigint): string {
   const usdcDecimals = 6n; // USDC has 6 decimal places
@@ -97,6 +98,8 @@ const ImportMoons = ({ onAddContract }: { onAddContract: (address: Address) => v
 
 const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const { address, publicClient, walletClient } = useRpcProvider()
+  const [moonsName, setMoonsName] = useState('')
+  const [moonsConstitution, setMoonsConstitution] = useState('')
   const [userUsdcBalance, setUserUsdcBalance] = useState<bigint>(BigInt(0))
   const [contractUsdcBalance, setContractUsdcBalance] = useState<bigint>(BigInt(0))
   const [admins, setAdmins] = useState<Address[]>([])
@@ -108,9 +111,24 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [disbursementValue, setDisbursementValue] = useState<string>('')
   const [adminAddress, setAdminAddress] = useState<string>('')
   const [participantAddress, setParticipantAddress] = useState<string>('')
+  const [[startTime, cycleTime], setCycleParameters] = useState<[bigint, bigint]>([BigInt(0), BigInt(0)])
 
   const usdcContract = useMemo(() => getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: USDC_ADDRESS }), [])
   const moonsContract = useMemo(() => getContract({ abi: MOONS_ABI, client: { public: publicClient }, address: selectedContract }), [])
+
+  const fetchName = () => {
+    moonsContract.read.name().then(name => setMoonsName(name as string))
+  }
+
+  const fetchConstitution = () => {
+    moonsContract.read.constitution().then(constitution => setMoonsConstitution(constitution as string))
+  }
+
+  const fetchCycleParameters = () => {
+    moonsContract.read.getCycleParameters().then(cycleParameters => {
+      setCycleParameters(cycleParameters as [bigint, bigint])
+    })
+  }
 
   const fetchUserUsdcBalance = () => {
     usdcContract.read.balanceOf([address]).then(balance => setUserUsdcBalance(balance as bigint))
@@ -199,6 +217,9 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   useEffect(() => {
     const fetchData = () => {
+      fetchName()
+      fetchConstitution()
+      fetchCycleParameters()
       fetchUserUsdcBalance()
       fetchMoonsUsdcBalance()
       fetchAdmins()
@@ -306,15 +327,28 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }
 }, [])
 
+  const nowSeconds = BigInt(Date.now()) / BigInt(1000)
+  const currentCycleEnd = startTime + (currentCycle * cycleTime)
+  const currentCycleStart = currentCycleEnd - cycleTime
+  const currentCycleStartAgo = BigInt(nowSeconds) - currentCycleStart
+  const currentCycleEndIn = currentCycleEnd - nowSeconds
+
   return (
     <>
       <div>
         <QRCodeSVG value={selectedContract} />
       </div>
-      <div>Contract Address: {selectedContract}</div>
+      <SineWave height={200} width={400} /> 
+      <div>Name: {moonsName}</div>
+      <div>Constitution: {moonsConstitution}</div>
+      <div>Start time: {startTime.toString()}</div>
+      <div>Current time: {Date.now() / 1000}</div>
+      <div>Cycle time: {cycleTime.toString()}</div>
       <div>Moons USDC: {`${formatUSDC(contractUsdcBalance)}`}</div>
       <div>User USDC: {`${formatUSDC(userUsdcBalance)}`}</div>
       <div>Current Cycle: {`${currentCycle}`}</div>
+      <div>Cycle started {`${currentCycleStartAgo} seconds ago`}</div>
+      <div>Cycle ending in {`${currentCycleEndIn} seconds`}</div>
       <div>Maximum Allowed Disbursement: {`${formatUSDC(maximumAllowedDisbursement)}`}</div>
 
       {isAdmin && (
@@ -396,13 +430,14 @@ const App = () => {
 
   const handleDeploy = async () => {
     if (window.confirm(`Are you sure you want to deploy a new Moons contract?`)) {
-      const data = encodeDeployData({ abi: MOONS_ABI, bytecode: MOONS_BYTECODE, args: [604800]})
+      const args = ["Test Moons", "Test Constitution", 604800]
+      const data = encodeDeployData({ abi: MOONS_ABI, bytecode: MOONS_BYTECODE, args})
       const gasLimit = await publicClient.estimateGas({
         account: address,
         data: data
       })
       console.log(`Gas estimate: ${gasLimit}`)
-      await walletClient.deployContract({ gas: gasLimit, abi: MOONS_ABI, bytecode: MOONS_BYTECODE, args: [604800], account: address, chain: base });
+      await walletClient.deployContract({ gas: gasLimit, abi: MOONS_ABI, bytecode: MOONS_BYTECODE, args, account: address, chain: base });
     }
   }
 
