@@ -143,7 +143,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [userUsdcBalance, setUserUsdcBalance] = useState<bigint>(BigInt(0))
   const [contractUsdcBalance, setContractUsdcBalance] = useState<bigint>(BigInt(0))
   const [admins, setAdmins] = useState<{[key: Address]: BigInt}>({})
-  const [participants, setParticipants] = useState<{[key: Address]: BigInt}>({})
+  const [participants, setParticipants] = useState<{[key: Address]: bigint}>({})
   const [currentCycle, setCurrentCycle] = useState<bigint>(BigInt(0))
   const [maximumAllowedDisbursement, setMaximumAllowedDisbursement] = useState<bigint>(BigInt(0))
   const [eventFeed, setEventFeed] = useState<string[]>([])
@@ -191,7 +191,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   const fetchAdmins = () => {
     moonsContract.read.getAdmins().then(adminsResponse => {
-      const [admins, ranks]: [Address[], BigInt[]] = (adminsResponse as [Address[], BigInt[]])
+      const [admins, ranks]: [Address[], BigInt[]] = (adminsResponse as [Address[], bigint[]])
       setAdmins(Object.fromEntries(zip(admins, ranks)))
       setIsAdmin(admins.includes(address || '0x'))
     })
@@ -199,7 +199,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   const fetchParticipants = () => {
     moonsContract.read.getParticipants().then(participantResponse => {
-      const [participants, ranks]: [Address[], BigInt[]] = (participantResponse as [Address[], BigInt[]])
+      const [participants, ranks]: [Address[], bigint[]] = (participantResponse as [Address[], bigint[]])
       setParticipants(Object.fromEntries(zip(participants, ranks)))
     })
   }
@@ -412,11 +412,35 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }
 }, [])
 
+  const cycleTimeNumber = Number(cycleTime)
+  const participantCount = BigInt(Object.keys(participants).length)
   const nowSeconds = BigInt(Date.now()) / BigInt(1000)
   const currentCycleEnd = startTime + (currentCycle * cycleTime)
+  const currentCycleEndIn = nowSeconds - currentCycleEnd
+  const currentCycleMid = currentCycleEnd - (cycleTime / BigInt(2))
   const currentCycleStart = currentCycleEnd - cycleTime
-  const currentCycleStartAgo = BigInt(nowSeconds) - currentCycleStart
-  const currentCycleEndIn = currentCycleEnd - nowSeconds
+  const rank = participants[address] ? participants[address]: BigInt(0)
+  const rankOffsetSeconds = participantCount ? ((rank - BigInt(1)) / participantCount) * cycleTime : BigInt(0)
+  const phaseSeconds = participantCount ? (((nowSeconds - startTime) + (((rank - BigInt(1)) / participantCount) * cycleTime)) % cycleTime) : BigInt(0)
+  const phaseSecondsNumber = Number(phaseSeconds)
+  const phaseRadians = cycleTimeNumber !== 0 ? (phaseSecondsNumber * 2 * Math.PI / cycleTimeNumber) : 0
+  const markers = phaseSecondsNumber !==0 ? [{ radians: phaseRadians, color: "#007BFF"}] : []
+  const currentCycleMax =  currentCycleMid + rankOffsetSeconds
+  const currentCycleMaxAgo = nowSeconds - currentCycleMax
+  const currentCycleMaxIn = currentCycleMax - nowSeconds
+
+  const phaseLabel = currentCycleMax > nowSeconds ? 'Waxing' : 'Waning';
+  const timeFromMaxSeconds = currentCycleMax > nowSeconds ? Number(currentCycleMaxIn) : Number(currentCycleMaxAgo);
+  const timeFromMaxHMS = new Date(timeFromMaxSeconds * 1000).toISOString().substring(11, 19);
+  const timeAboutMaxString = currentCycleMax > nowSeconds
+    ? `${timeFromMaxHMS} until max`
+    : `${timeFromMaxHMS} since max`;
+
+  const timeFromMinSeconds = currentCycleMax > nowSeconds ? Number(nowSeconds - currentCycleStart + rankOffsetSeconds) : Number(currentCycleEnd + rankOffsetSeconds - nowSeconds);
+  const timeFromMinHMS = new Date(timeFromMinSeconds * 1000).toISOString().substring(11, 19);
+  const timeAboutMinString = currentCycleMax > nowSeconds
+    ? `${timeFromMinHMS} since min`
+    : `${timeFromMinHMS} until min`;
 
   const participantList = getSortedAddressesByRank(participants).map(addr => {
     return (
@@ -438,40 +462,46 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         onLongPress={() => isAdmin && removeAdmin(addr)}
       />
     )
-  })  
+  })
   
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '800px' }}>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', marginRight: '1em' }}>
           <QRCodeSVG value={selectedContract} bgColor='#F6F1D5' />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start' }}>
           <h2 style={{ margin: '0' }}>{moonsName}</h2>
-          <h4 style={{ fontFamily: 'monospace', fontSize: '6em', margin: '0' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h4>
+          <h1 style={{ fontFamily: 'monospace', fontSize: '6em', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
         </div>
       </div>
-      <SineWave height={200} width={400} />
-      <div>Start time: {startTime.toString()}</div>
-      <div>Current time: {Date.now() / 1000}</div>
-      <div>Cycle time: {cycleTime.toString()}</div>
-      <div>User USDC: {`${formatUSDC(userUsdcBalance)}`}</div>
-      <div>Current Cycle: {`${currentCycle}`}</div>
-      <div>Cycle started {`${currentCycleStartAgo} seconds ago`}</div>
-      <div>Cycle ending in {`${currentCycleEndIn} seconds`}</div>
-      <div>Maximum Allowed Disbursement: {`${formatUSDC(maximumAllowedDisbursement)}`}</div>
-      <div>Participants: {Object.keys(participants).length}</div>
-      {mayDisburse && (
-        <div>
-          <input
-            type="text"
-            placeholder="Disbursement Value"
-            value={disbursementValue}
-            onChange={(e) => setDisbursementValue(e.target.value)}
-          />
-          <button onClick={disburseFunds}>Disburse Funds</button>
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', marginTop: '1em'}}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <h4 style={{ fontSize: '1.5em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{phaseLabel}</h4>
+          <h4 style={{ fontSize: '1.3em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
         </div>
-      )}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <h4 style={{ fontSize: '1.4em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{timeAboutMaxString}</h4>
+          <h4 style={{ fontSize: '1.4em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{timeAboutMinString}</h4>
+        </div>
+      </div>
+      <SineWave height={200} width={800} markers={markers} />
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', marginBottom: '2em'}}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+          <h4 style={{ fontSize: '2em', fontWeight: 'bold', fontFamily: 'monospace', margin: '0', alignSelf: 'center' }}>{formatUSDC(maximumAllowedDisbursement)} USDC</h4>
+          {mayDisburse && (
+            <div>
+              <input
+                type="text"
+                placeholder="Disbursement Value"
+                value={disbursementValue}
+                onChange={(e) => setDisbursementValue(e.target.value)}
+              />
+              <button onClick={disburseFunds}>Disburse Funds</button>
+            </div>
+          )}
+        </div>
+      </div>
       <h3 style={{ margin: '0' }}>
         Participants
         {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)}>+</button>}
