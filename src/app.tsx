@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, ChangeEvent } from 'react'
 import { useWalletClientContext } from './loader'
 import { QRCodeSVG } from 'qrcode.react'
-import { Address, isAddress, getContract, encodeDeployData, Log, Client } from 'viem'
+import { Address, isAddress, getContract, encodeDeployData, Log, Client, getAddress } from 'viem'
 import { ERC20_ABI, USDC_ADDRESS } from './constants'
 import { MOONS_ABI, MOONS_BYTECODE } from './moons'
 import { base } from 'viem/chains'
 import SineWave from './sine'
 import { usePublicClient } from 'wagmi'
-import { AddressBubble } from './util'
+import { AddressBubble, getColorFromAddress } from './util'
 
 function formatUSDC(amount: bigint): string {
   const usdcDecimals = 6n; // USDC has 6 decimal places
@@ -144,7 +144,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [contractUsdcBalance, setContractUsdcBalance] = useState<bigint>(BigInt(0))
   const [admins, setAdmins] = useState<{[key: Address]: BigInt}>({})
   const [participants, setParticipants] = useState<{[key: Address]: bigint}>({})
-  const [currentCycle, setCurrentCycle] = useState<bigint>(BigInt(0))
   const [maximumAllowedDisbursement, setMaximumAllowedDisbursement] = useState<bigint>(BigInt(0))
   const [eventFeed, setEventFeed] = useState<string[]>([])
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
@@ -153,10 +152,13 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [participantAddress, setParticipantAddress] = useState<string>('')
   const [startTime, setStartTime] = useState<bigint>(0n)
   const [cycleTime, setCycleTime] = useState<bigint>(0n)
-  const [mayDisburse, setMayDisburse] = useState(true)
+  const [nextAllowedDisburseTime, setNextAllowedDisburseTime] = useState(BigInt(0))
   const [showAddAdmin, setShowAddAdmin] = useState(false);
   const [showAddParticipant, setShowAddParticipant] = useState(false);
-  const [confirmRemove, setConfirmRemove] = useState<{address: string, type: 'admin' | 'participant'} | null>(null);
+  const [showDisbursementInput, setShowDisbursementInput] = useState(false)
+  const [showKnockInput, setShowKnockInput] = useState(false)
+  const [knockMemo, setKnockMemo] = useState('')
+  const [disbursmentError, setDisbursmentError] = useState('');
 
   const usdcContract = useMemo(() => getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: USDC_ADDRESS }), [])
   const moonsContract = useMemo(() => getContract({ abi: MOONS_ABI, client: { public: publicClient }, address: selectedContract }), [])
@@ -204,14 +206,10 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     })
   }
 
-  const fetchMayDisburse = () => {
-    moonsContract.read.mayDisburse([USDC_ADDRESS, address]).then(may => {
-      setMayDisburse(may as boolean)
+  const fetchNextAllowedDisburseTime = () => {
+    moonsContract.read.getNextAllowedDisburseTime([address]).then(time => {
+      setNextAllowedDisburseTime(time as bigint)
     })
-  }
-
-  const fetchCurrentCycle = () => {
-    moonsContract.read.getCurrentCycle().then(cycle => setCurrentCycle(cycle as bigint))
   }
 
   const fetchMaximumAllowedDisbursement = () => {
@@ -224,18 +222,47 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }).then(value => setMaximumAllowedDisbursement(value as bigint))
   }
 
+  const handleDisbursementChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (/^\d*\.?\d{0,2}$/.test(value)) {
+      setDisbursementValue(value);
+      if (BigInt(parseFloat(value) * 1e6) > maximumAllowedDisbursement) {
+        setDisbursmentError(`Value must be less than ${formatUSDC(maximumAllowedDisbursement)}`);
+      } else {
+        setDisbursmentError('');
+      }
+    }
+  };
+
   const disburseFunds = () => {
+    const valueInMicroUSDC = BigInt(Math.round(parseFloat(disbursementValue) * 1e6));
     walletClient.writeContract({
       chain: walletClient.chain,
       account: address,
       abi: MOONS_ABI,
       address: selectedContract,
       functionName: 'disburseFunds',
-      args: [USDC_ADDRESS, BigInt(disbursementValue), '']
+      args: [USDC_ADDRESS, valueInMicroUSDC, '']
     }).then(_ => {
       fetchMoonsUsdcBalance()
       fetchUserUsdcBalance()
+      fetchNextAllowedDisburseTime()
     })
+    setShowDisbursementInput(false)
+    setDisbursementValue('0')
+  }
+
+  const knock = () => {
+    walletClient.writeContract({
+      chain: walletClient.chain,
+      account: address,
+      abi: MOONS_ABI,
+      address: selectedContract,
+      functionName: 'knock',
+      args: [knockMemo]
+    })
+    setShowKnockInput(false)
+    setKnockMemo('')
   }
 
   const addAdmin = () => {
@@ -249,6 +276,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }).then(_ => {
       fetchAdmins()
     })
+    setShowAddAdmin(false)
+    setAdminAddress('0x')
   }
 
   const addParticipant = () => {
@@ -262,6 +291,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }).then(_ => {
       fetchParticipants()
     })
+    setShowAddParticipant(false)
+    setParticipantAddress('0x')
   }
 
   const removeAdmin = (addressToRemove: string) => {
@@ -290,12 +321,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }
   }  
 
-  const handleEvent = (eventType: string, log: Log) => {
-    setEventFeed(prevFeed => [`${eventType}\n${JSON.stringify(log, (_, value) =>
-      typeof value === 'bigint'
-          ? value.toString()
-          : value
-    )}`, ...prevFeed])
+  const handleEvent = (eventMessage: string) => {
+    setEventFeed(prevFeed => [eventMessage, ...prevFeed])
   }
 
   useEffect(() => {
@@ -308,9 +335,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       fetchMoonsUsdcBalance()
       fetchAdmins()
       fetchParticipants()
-      fetchCurrentCycle()
       fetchMaximumAllowedDisbursement()
-      fetchMayDisburse()
+      fetchNextAllowedDisburseTime()
     }
 
     fetchData()
@@ -323,7 +349,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       eventName: 'AdminAdded',
       onLogs: logs => {
         fetchAdmins()
-        logs.forEach(log => handleEvent('AdminAdded', log))
+        logs.forEach(_ => handleEvent('AdminAdded'))
       }
     })
 
@@ -333,7 +359,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       eventName: 'AdminRemoved',
       onLogs: logs => {
         fetchAdmins()
-        logs.forEach(log => handleEvent('AdminRemoved', log))
+        logs.forEach(_ => handleEvent('AdminRemoved'))
       }
     })
 
@@ -343,7 +369,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       eventName: 'ParticipantAdded',
       onLogs: logs => {
         fetchParticipants()
-        logs.forEach(log => handleEvent('ParticipantAdded', log))
+        logs.forEach(_ => handleEvent('ParticipantAdded'))
       }
     })
 
@@ -353,7 +379,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       eventName: 'ParticipantRemoved',
       onLogs: logs => {
         fetchParticipants()
-        logs.forEach(log => handleEvent('ParticipantRemoved', log))
+        logs.forEach(_ => handleEvent('ParticipantRemoved'))
       }
     })
 
@@ -364,7 +390,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       args: { to: selectedContract },
       onLogs: logs => {
         fetchMoonsUsdcBalance()
-        logs.forEach(log => handleEvent('FundsAdded', log))
+        logs.forEach(_ => handleEvent('FundsAdded'))
       }
     })
 
@@ -374,7 +400,16 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       eventName: 'FundsDisbursed',
       onLogs: logs => {
         fetchMoonsUsdcBalance()
-        logs.forEach(log => handleEvent('FundsDisbursed', log))
+        logs.forEach(_ => handleEvent('FundsDisbursed'))
+      }
+    })
+
+    const unwatchKnock = publicClient.watchContractEvent({
+      address: selectedContract,
+      abi: MOONS_ABI,
+      eventName: 'Knock',
+      onLogs: logs => {
+        logs.forEach(_ => handleEvent('Knock'))
       }
     })
 
@@ -409,36 +444,58 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       unwatchParticipantRemoved()
       unwatchTransferToMoons()
       unwatchFundsDisbursed()
+      unwatchKnock()
     }
 }, [])
 
+  const isParticipant = participants[address] ? true : false
   const cycleTimeNumber = Number(cycleTime)
   const participantCount = BigInt(Object.keys(participants).length)
+
+  const getCycleLocation = (address: Address): [bigint, number, bigint] => {
+    const rank = participants[address]
+    if (!rank) return [BigInt(0), 0, BigInt(0)]
+    if (!cycleTime) return [BigInt(0), 0, BigInt(0)]
+    if (!participantCount) return [BigInt(0), 0, BigInt(0)]
+    const rankOffsetSeconds = ((rank - BigInt(1)) / participantCount) * cycleTime
+    const phaseSeconds = ((nowSeconds - startTime) + (((rank - BigInt(1)) / participantCount) * cycleTime)) % cycleTime
+    const phaseSecondsNumber = Number(phaseSeconds)
+    const cycleRadians = cycleTimeNumber !== 0 ? (phaseSecondsNumber * 2 * Math.PI / cycleTimeNumber) : 0
+    const cycleMaxTime =  currentCycleMid + rankOffsetSeconds
+    return [rankOffsetSeconds, cycleRadians, cycleMaxTime]
+  }
+
   const nowSeconds = BigInt(Date.now()) / BigInt(1000)
-  const currentCycleEnd = startTime + (currentCycle * cycleTime)
+  const mayDisburse = nextAllowedDisburseTime ? nowSeconds > nextAllowedDisburseTime : false
+  const currentCycleSecondsElapsed = cycleTime ? (nowSeconds - startTime) % cycleTime : BigInt(0)
+  const currentCycleSecondsRemaining = cycleTime - currentCycleSecondsElapsed
+  const currentCycleEnd = nowSeconds  + currentCycleSecondsRemaining
   const currentCycleEndIn = nowSeconds - currentCycleEnd
   const currentCycleMid = currentCycleEnd - (cycleTime / BigInt(2))
   const currentCycleStart = currentCycleEnd - cycleTime
-  const rank = participants[address] ? participants[address]: BigInt(0)
-  const rankOffsetSeconds = participantCount ? ((rank - BigInt(1)) / participantCount) * cycleTime : BigInt(0)
-  const phaseSeconds = participantCount ? (((nowSeconds - startTime) + (((rank - BigInt(1)) / participantCount) * cycleTime)) % cycleTime) : BigInt(0)
-  const phaseSecondsNumber = Number(phaseSeconds)
-  const phaseRadians = cycleTimeNumber !== 0 ? (phaseSecondsNumber * 2 * Math.PI / cycleTimeNumber) : 0
-  const markers = phaseSecondsNumber !==0 ? [{ radians: phaseRadians, color: "#007BFF"}] : []
-  const currentCycleMax =  currentCycleMid + rankOffsetSeconds
-  const currentCycleMaxAgo = nowSeconds - currentCycleMax
-  const currentCycleMaxIn = currentCycleMax - nowSeconds
 
-  const phaseLabel = currentCycleMax > nowSeconds ? 'Waxing' : 'Waning';
-  const timeFromMaxSeconds = currentCycleMax > nowSeconds ? Number(currentCycleMaxIn) : Number(currentCycleMaxAgo);
+  const yourCycleLocation = getCycleLocation(address)
+  const yourMarkers = isParticipant ? [{ radians: yourCycleLocation[1], color: "#007BFF"}] : []
+  const participantMarkers = Object.keys(participants).map(addr => {
+    const cycleLocation = getCycleLocation(addr as Address)
+    return { radians: cycleLocation[1], color: getColorFromAddress(addr as Address) }
+  })
+  const markers = [ ...yourMarkers,  ...participantMarkers]
+
+  const yourCycleMaxTime = yourCycleLocation ? yourCycleLocation[2] : BigInt(0)
+  const currentCycleMaxAgo = nowSeconds - yourCycleMaxTime
+  const currentCycleMaxIn = yourCycleMaxTime - nowSeconds
+
+  const phaseLabel = yourCycleMaxTime > nowSeconds ? 'Waxing' : 'Waning';
+  const timeFromMaxSeconds = yourCycleMaxTime > nowSeconds ? Number(currentCycleMaxIn) : Number(currentCycleMaxAgo);
   const timeFromMaxHMS = new Date(timeFromMaxSeconds * 1000).toISOString().substring(11, 19);
-  const timeAboutMaxString = currentCycleMax > nowSeconds
+  const timeAboutMaxString = yourCycleMaxTime > nowSeconds
     ? `${timeFromMaxHMS} until max`
     : `${timeFromMaxHMS} since max`;
 
-  const timeFromMinSeconds = currentCycleMax > nowSeconds ? Number(nowSeconds - currentCycleStart + rankOffsetSeconds) : Number(currentCycleEnd + rankOffsetSeconds - nowSeconds);
+  const timeFromMinSeconds = yourCycleMaxTime > nowSeconds ? Number(nowSeconds - currentCycleStart + yourCycleLocation[0]) : Number(currentCycleEnd + yourCycleLocation[0] - nowSeconds);
   const timeFromMinHMS = new Date(timeFromMinSeconds * 1000).toISOString().substring(11, 19);
-  const timeAboutMinString = currentCycleMax > nowSeconds
+  const timeAboutMinString = yourCycleMaxTime > nowSeconds
     ? `${timeFromMinHMS} since min`
     : `${timeFromMinHMS} until min`;
 
@@ -447,7 +504,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       <AddressBubble
         key={`participant-${addr}`}
         address={addr}
-        textColor='#F6F1D5'
+        textColor={getColorFromAddress(addr)}
         onLongPress={() => isAdmin && removeParticipant(addr)}
       />
     )
@@ -468,7 +525,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '800px' }}>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', marginRight: '1em' }}>
-          <QRCodeSVG value={selectedContract} bgColor='#F6F1D5' />
+          <QRCodeSVG value={getAddress(selectedContract)} fgColor='#F6F1D5' bgColor='#000000' />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start' }}>
           <h2 style={{ margin: '0' }}>{moonsName}</h2>
@@ -477,69 +534,110 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       </div>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', marginTop: '1em'}}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <h4 style={{ fontSize: '1.5em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{phaseLabel}</h4>
+          {isParticipant && <h4 style={{ fontSize: '1.5em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{phaseLabel}</h4>}
           <h4 style={{ fontSize: '1.3em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {isParticipant && <div style={{ display: 'flex', flexDirection: 'column' }}>
           <h4 style={{ fontSize: '1.4em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{timeAboutMaxString}</h4>
           <h4 style={{ fontSize: '1.4em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{timeAboutMinString}</h4>
-        </div>
+        </div>}
       </div>
       <SineWave height={200} width={800} markers={markers} />
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', marginBottom: '2em'}}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-          <h4 style={{ fontSize: '2em', fontWeight: 'bold', fontFamily: 'monospace', margin: '0', alignSelf: 'center' }}>{formatUSDC(maximumAllowedDisbursement)} USDC</h4>
-          {mayDisburse && (
+          {!isParticipant && (
+            <div style={{ marginBottom: '1em'}}>
+              {showKnockInput ? (
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Knock message"
+                    value={knockMemo}
+                    onChange={e => setKnockMemo(e.target.value)}
+                  />
+                  <button onClick={knock} disabled={!knockMemo}>Knock</button>
+                  <button onClick={() => setShowKnockInput(false)}>Cancel</button>
+                </div>
+              ) : (
+                <button onClick={() => setShowKnockInput(true)}>Knock</button>
+              )}
+            </div>
+          )}
+          {isParticipant && mayDisburse && (
+            <div style={{ marginBottom: '1em'}}>
+              {showDisbursementInput ? (
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Disbursement Value"
+                    value={disbursementValue}
+                    onChange={handleDisbursementChange}
+                  />
+                  <button onClick={disburseFunds} disabled={!!disbursmentError || !disbursementValue}>Disburse</button>
+                  <button onClick={() => setShowDisbursementInput(false)}>Cancel</button>
+                  {disbursmentError && <div style={{ color: 'red' }}>{disbursmentError}</div>}
+                </div>
+              ) : (
+                <button onClick={() => setShowDisbursementInput(true)}>Disburse Funds</button>
+              )}
+            </div>
+          )}
+          {!isParticipant && <h4 style={{ fontSize: '1em', margin: '0', marginBottom: '1em', alignSelf: 'center' }}>You are not currently a participant of this Moons protocol instance</h4>}
+          {isParticipant && mayDisburse && <h4 style={{ fontSize: '2em', fontWeight: 'bold', fontFamily: 'monospace', margin: '0', marginBottom: '1em', alignSelf: 'center' }}>{formatUSDC(maximumAllowedDisbursement)} USDC</h4>}
+        </div>
+      </div>
+      <div style={{display: 'flex', flexDirection: 'row'}}>
+        <div style={{display: 'flex', flexDirection: 'column', flexGrow: '3'}}>
+          <h3 style={{ margin: '0' }}>
+            Event feed
+          </h3>
+          {eventFeed.map((event, index) => (
+            <div key={index}>
+              {event}
+            </div>
+          ))}
+        </div>
+        <div style={{display: 'flex', flexDirection: 'column', flexGrow: '1'}}>
+          <h3 style={{ margin: '0' }}>
+            Participants
+            {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)}>+</button>}
+          </h3>
+          {showAddParticipant && (
             <div>
               <input
                 type="text"
-                placeholder="Disbursement Value"
-                value={disbursementValue}
-                onChange={(e) => setDisbursementValue(e.target.value)}
+                placeholder="Participant Address"
+                value={participantAddress}
+                onChange={(e) => setParticipantAddress(e.target.value)}
               />
-              <button onClick={disburseFunds}>Disburse Funds</button>
+              <button onClick={addParticipant}>Add</button>
+              <button onClick={() => setShowAddParticipant(false)}>Cancel</button>
             </div>
           )}
-        </div>
-      </div>
-      <h3 style={{ margin: '0' }}>
-        Participants
-        {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)}>+</button>}
-      </h3>
-      {showAddParticipant && (
-        <div>
-          <input
-            type="text"
-            placeholder="Participant Address"
-            value={participantAddress}
-            onChange={(e) => setParticipantAddress(e.target.value)}
-          />
-          <button onClick={addParticipant}>Add</button>
-          <button onClick={() => setShowAddParticipant(false)}>Cancel</button>
-        </div>
-      )}
-      <div style={{ display: 'flex' }}>
-        {participantList}
-      </div>
-      
-      <h3 style={{ margin: '0' }}>
-        Administrators
-        {isAdmin && !showAddAdmin && <button onClick={() => setShowAddAdmin(true)}>+</button>}
-      </h3>
-      {showAddAdmin && (
-        <div>
-          <input
-            type="text"
-            placeholder="Admin Address"
-            value={adminAddress}
-            onChange={(e) => setAdminAddress(e.target.value)}
-          />
-          <button onClick={addAdmin}>Add</button>
-          <button onClick={() => setShowAddAdmin(false)}>Cancel</button>
-        </div>
-      )}
-      <div style={{ display: 'flex' }}>
-        {adminList}
+          <div style={{ display: 'flex', marginBottom: '1em' }}>
+            {participantList}
+          </div>
+          
+          <h3 style={{ margin: '0' }}>
+            Administrators
+            {isAdmin && !showAddAdmin && <button onClick={() => setShowAddAdmin(true)}>+</button>}
+          </h3>
+          {showAddAdmin && (
+            <div>
+              <input
+                type="text"
+                placeholder="Admin Address"
+                value={adminAddress}
+                onChange={(e) => setAdminAddress(e.target.value)}
+              />
+              <button onClick={addAdmin}>Add</button>
+              <button onClick={() => setShowAddAdmin(false)}>Cancel</button>
+            </div>
+          )}
+          <div style={{ display: 'flex' }}>
+            {adminList}
+          </div>
+        </div>  
       </div>
     </div>
   )

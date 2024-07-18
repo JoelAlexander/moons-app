@@ -1,4 +1,27 @@
 import React from 'react';
+import { Address } from 'viem';
+
+const colors = [
+  "#FF5733", "#33FF57", "#5733FF", "#FF33A1", "#33FFA1", "#A133FF", 
+  "#FF9633", "#33FF96", "#9633FF", "#FF3396", "#33FFCC", "#3396FF",
+  "#FFCC33", "#33CCFF", "#CC33FF", "#FF3366", "#66FF33", "#6633FF",
+];
+
+export const getColorFromAddress = (address: Address): string => {
+  // Create a simple hash of the address
+  let hash = 0;
+  for (let i = 0; i < address.length; i++) {
+    hash = address.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  // Ensure the hash is positive
+  hash = Math.abs(hash);
+
+  // Get a color from the colors array
+  const colorIndex = hash % colors.length;
+
+  return colors[colorIndex];
+}
 
 export const AddressBubble = ({ address, textColor, onLongPress}: { address: string, textColor: string, onLongPress?: () => void}) => {
   const abbreviateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
