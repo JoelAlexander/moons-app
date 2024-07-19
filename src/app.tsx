@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo, ChangeEvent } from 'react'
+import React, { useState, useEffect, useRef, useMemo, ChangeEvent, MutableRefObject } from 'react'
 import { useWalletClientContext } from './loader'
 import { QRCodeSVG } from 'qrcode.react'
-import { Address, isAddress, getContract, encodeDeployData, Log, Client, getAddress } from 'viem'
+import { Address, isAddress, getContract, encodeDeployData, Log, Client, getAddress, decodeEventLog, parseAbiItem } from 'viem'
 import { ERC20_ABI, USDC_ADDRESS } from './constants'
 import { MOONS_ABI, MOONS_BYTECODE } from './moons'
 import { base } from 'viem/chains'
 import SineWave from './sine'
-import { usePublicClient } from 'wagmi'
 import { AddressBubble, getColorFromAddress } from './util'
 
 function formatUSDC(amount: bigint): string {
@@ -136,16 +135,34 @@ function getSortedAddressesByRank(obj: {[key: Address]: BigInt}): Address[] {
   }) as Address[];
 }
 
+function usePrevious<T>(
+  value: T,
+  initial: T
+): MutableRefObject<T>['current'] {
+  const ref = useRef<T>();
+  useEffect(() => {
+    ref.current = value;
+  }, [value]);
+  return ref.current ?? initial;
+}
+
+type MoonsUserEvent = {
+  title: string,
+  message: string
+  actor: Address
+  obj?: Address
+  blockNumber: bigint
+}
+
 const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const { address, publicClient, walletClient } = useWalletClientContext()
   const [moonsName, setMoonsName] = useState('')
   const [moonsConstitution, setMoonsConstitution] = useState('')
-  const [userUsdcBalance, setUserUsdcBalance] = useState<bigint>(BigInt(0))
   const [contractUsdcBalance, setContractUsdcBalance] = useState<bigint>(BigInt(0))
   const [admins, setAdmins] = useState<{[key: Address]: BigInt}>({})
   const [participants, setParticipants] = useState<{[key: Address]: bigint}>({})
   const [maximumAllowedDisbursement, setMaximumAllowedDisbursement] = useState<bigint>(BigInt(0))
-  const [eventFeed, setEventFeed] = useState<string[]>([])
+  const [eventFeed, setEventFeed] = useState<MoonsUserEvent[]>([])
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
   const [disbursementValue, setDisbursementValue] = useState<string>('')
   const [adminAddress, setAdminAddress] = useState<string>('')
@@ -159,6 +176,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [showKnockInput, setShowKnockInput] = useState(false)
   const [knockMemo, setKnockMemo] = useState('')
   const [disbursmentError, setDisbursmentError] = useState('');
+  const [blockNumber, setBlockNumber] = useState<bigint>(BigInt(0))
+  const prevBlockNumber = usePrevious<bigint>(blockNumber, BigInt(0))
 
   const usdcContract = useMemo(() => getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: USDC_ADDRESS }), [])
   const moonsContract = useMemo(() => getContract({ abi: MOONS_ABI, client: { public: publicClient }, address: selectedContract }), [])
@@ -181,10 +200,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     moonsContract.read.cycleTime().then(cycleTime => {
       setCycleTime(cycleTime as bigint)
     })
-  }
-
-  const fetchUserUsdcBalance = () => {
-    usdcContract.read.balanceOf([address]).then(balance => setUserUsdcBalance(balance as bigint))
   }
 
   const fetchMoonsUsdcBalance = () => {
@@ -245,7 +260,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       args: [USDC_ADDRESS, valueInMicroUSDC, '']
     }).then(_ => {
       fetchMoonsUsdcBalance()
-      fetchUserUsdcBalance()
       fetchNextAllowedDisburseTime()
     })
     setShowDisbursementInput(false)
@@ -321,131 +335,249 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }
   }  
 
-  const handleEvent = (eventMessage: string) => {
-    setEventFeed(prevFeed => [eventMessage, ...prevFeed])
+  const addUserEvents = (userEvents: MoonsUserEvent[]) => {
+    setEventFeed(prevFeed => [...userEvents, ...prevFeed])
+  }
+
+  const updateBlockNumber = () => {
+    publicClient.getBlockNumber().then(setBlockNumber)
   }
 
   useEffect(() => {
-    const fetchData = () => {
-      fetchName()
-      fetchConstitution()
-      fetchStartTime()
-      fetchCycleTime()
-      fetchUserUsdcBalance()
-      fetchMoonsUsdcBalance()
-      fetchAdmins()
-      fetchParticipants()
-      fetchMaximumAllowedDisbursement()
-      fetchNextAllowedDisburseTime()
-    }
-
-    fetchData()
-    
-    const interval = setInterval(fetchData, 15000)
-
-    const unwatchAdminAdded = publicClient.watchContractEvent({
-      address: selectedContract,
-      abi: MOONS_ABI,
-      eventName: 'AdminAdded',
-      onLogs: logs => {
-        fetchAdmins()
-        logs.forEach(_ => handleEvent('AdminAdded'))
-      }
-    })
-
-    const unwatchAdminRemoved = publicClient.watchContractEvent({
-      address: selectedContract,
-      abi: MOONS_ABI,
-      eventName: 'AdminRemoved',
-      onLogs: logs => {
-        fetchAdmins()
-        logs.forEach(_ => handleEvent('AdminRemoved'))
-      }
-    })
-
-    const unwatchParticipantAdded = publicClient.watchContractEvent({
-      address: selectedContract,
-      abi: MOONS_ABI,
-      eventName: 'ParticipantAdded',
-      onLogs: logs => {
-        fetchParticipants()
-        logs.forEach(_ => handleEvent('ParticipantAdded'))
-      }
-    })
-
-    const unwatchParticipantRemoved = publicClient.watchContractEvent({
-      address: selectedContract,
-      abi: MOONS_ABI,
-      eventName: 'ParticipantRemoved',
-      onLogs: logs => {
-        fetchParticipants()
-        logs.forEach(_ => handleEvent('ParticipantRemoved'))
-      }
-    })
-
-    const unwatchTransferToMoons = publicClient.watchContractEvent({
-      address: USDC_ADDRESS,
-      abi: ERC20_ABI,
-      eventName: 'Transfer',
-      args: { to: selectedContract },
-      onLogs: logs => {
-        fetchMoonsUsdcBalance()
-        logs.forEach(_ => handleEvent('FundsAdded'))
-      }
-    })
-
-    const unwatchFundsDisbursed = publicClient.watchContractEvent({
-      address: selectedContract,
-      abi: MOONS_ABI,
-      eventName: 'FundsDisbursed',
-      onLogs: logs => {
-        fetchMoonsUsdcBalance()
-        logs.forEach(_ => handleEvent('FundsDisbursed'))
-      }
-    })
-
-    const unwatchKnock = publicClient.watchContractEvent({
-      address: selectedContract,
-      abi: MOONS_ABI,
-      eventName: 'Knock',
-      onLogs: logs => {
-        logs.forEach(_ => handleEvent('Knock'))
-      }
-    })
-
-    const unwatchTransferFromUser = publicClient.watchContractEvent({
-      address: USDC_ADDRESS,
-      abi: ERC20_ABI,
-      eventName: 'Transfer',
-      args: { from: address },
-      onLogs: _ => fetchUserUsdcBalance()
-    })
-
-    const unwatchTransferToUser = publicClient.watchContractEvent({
-      address: USDC_ADDRESS,
-      abi: ERC20_ABI,
-      eventName: 'Transfer',
-      args: { to: address },
-      onLogs: _ => fetchUserUsdcBalance()
-    })
-
+    updateBlockNumber()
+    const interval = setInterval(updateBlockNumber, 5000)
     return () => {
-      // Clear interval on unmount
       clearInterval(interval)
-
-      // Generic user sync
-      unwatchTransferFromUser()
-      unwatchTransferToUser()
-
-      // Contract specific actions
-      unwatchAdminAdded()
-      unwatchAdminRemoved()
-      unwatchParticipantAdded()
-      unwatchParticipantRemoved()
-      unwatchTransferToMoons()
-      unwatchFundsDisbursed()
-      unwatchKnock()
     }
+  }, [])
+
+  useEffect(() => {
+    if (blockNumber <= prevBlockNumber) {
+      console.log(`Current block is not greater than previous, not fetching events.`)
+      return
+    }
+
+    const MAX_BLOCKS = BigInt(1000)
+    const fromBlock = blockNumber - prevBlockNumber + BigInt(1) > MAX_BLOCKS ? blockNumber - MAX_BLOCKS + BigInt(1) : prevBlockNumber + BigInt(1)
+    const toBlock = blockNumber
+    console.log(`${fromBlock} -- ${toBlock}`)
+
+    const adminAddedAbi = parseAbiItem('event AdminAdded(address indexed admin, address indexed by, uint256 rank, string memo)')
+    const adminRemovedAbi = parseAbiItem('event AdminRemoved(address indexed admin, address indexed by, uint256 rank, string memo)')
+    const participantAddedAbi = parseAbiItem('event ParticipantAdded(address indexed participant, address indexed by, uint256 rank, string memo)')
+    const participantRemovedAbi = parseAbiItem('event ParticipantRemoved(address indexed participant, address indexed by, uint256 rank, string memo)')
+    const fundsDisbursedAbi = parseAbiItem('event FundsDisbursed(address indexed token, address indexed by, uint256 amount, string memo)')
+    const constitutionChangedAbi = parseAbiItem('event ConstitutionChanged(address indexed by, string constitution)')
+    const nameChangedAbi = parseAbiItem('event NameChanged(address indexed by, string name)')
+    const knockAbi = parseAbiItem('event Knock(address indexed addr, string memo)')
+    const transferAbi = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
+
+    const adminAddedEvents = publicClient.getLogs({
+      address: selectedContract,
+      event: adminAddedAbi,
+      fromBlock,
+      toBlock
+    }).then(logs => {
+      if (logs.length > 0) {
+        fetchAdmins()
+      }
+      return logs.map(log => {
+        return {
+          title: 'Admin added',
+          actor: log.args.by ?? '0x',
+          obj: log.args.admin,
+          message: log.args.memo ?? '',
+          blockNumber: log.blockNumber
+        }
+      })
+    })
+
+    const adminRemovedEvents = publicClient.getLogs({
+      address: selectedContract,
+      event: adminRemovedAbi,
+      fromBlock,
+      toBlock
+    }).then(logs => {
+      if (logs.length > 0) {
+        fetchAdmins()
+      }
+      return logs.map(log => {
+        return {
+          title: 'Admin removed',
+          actor: log.args.by ?? '0x',
+          obj: log.args.admin,
+          message: log.args.memo ?? '',
+          blockNumber: log.blockNumber
+        }
+      })
+    })
+
+    const participantAddedEvents = publicClient.getLogs({
+      address: selectedContract,
+      event: participantAddedAbi,
+      fromBlock,
+      toBlock
+    }).then(logs => {
+      if (logs.length > 0) {
+        fetchParticipants()
+      }
+      return logs.map(log => {
+        return {
+          title: 'Participant added',
+          actor: log.args.by ?? '0x',
+          obj: log.args.participant,
+          message: log.args.memo ?? '',
+          blockNumber: log.blockNumber
+        }
+      })
+    })
+
+    const participantRemovedEvents = publicClient.getLogs({
+      address: selectedContract,
+      event: participantRemovedAbi,
+      fromBlock,
+      toBlock
+    }).then(logs => {
+      if (logs.length > 0) {
+        fetchParticipants()
+      }
+      return logs.map(log => {
+        return {
+          title: 'Participant removed',
+          actor: log.args.by ?? '0x',
+          obj: log.args.participant,
+          message: log.args.memo ?? '',
+          blockNumber: log.blockNumber
+        }
+      })
+    })
+
+    const fundsDisbursedEvents = publicClient.getLogs({
+      address: selectedContract,
+      event: fundsDisbursedAbi,
+      fromBlock,
+      toBlock
+    }).then(logs => {
+      return logs.map(log => {
+        if (logs.length > 0) {
+          fetchMoonsUsdcBalance()
+        }
+        return {
+          title: 'Funds disbursed',
+          actor: log.args.by ?? '0x',
+          obj: log.args.token,
+          message: log.args.memo ?? '',
+          blockNumber: log.blockNumber
+        }
+      })
+    })
+
+    const constitutionChangedEvents = publicClient.getLogs({
+      address: selectedContract,
+      event: constitutionChangedAbi,
+      fromBlock,
+      toBlock
+    }).then(logs => {
+      if (logs.length > 0) {
+        fetchConstitution()
+      }
+      return logs.map(log => {
+        return {
+          title: 'Constitution changed',
+          actor: log.args.by ?? '0x',
+          message: log.args.constitution ?? '',
+          blockNumber: log.blockNumber
+        }
+      })
+    })
+
+    const nameChangedEvents = publicClient.getLogs({
+      address: selectedContract,
+      event: nameChangedAbi,
+      fromBlock,
+      toBlock
+    }).then(logs => {
+      if (logs.length > 0) {
+        fetchName()
+      }
+      return logs.map(log => {
+        return {
+          title: 'Name changed',
+          actor: log.args.by ?? '0x',
+          message: log.args.name ?? '',
+          blockNumber: log.blockNumber
+        }
+      })
+    })
+
+    const knockEvents = publicClient.getLogs({
+      address: selectedContract,
+      event: knockAbi,
+      fromBlock,
+      toBlock
+    }).then(logs => {
+      return logs.map(log => {
+        return {
+          title: 'Knock',
+          actor: log.args.addr ?? '0x',
+          message: log.args.memo ?? '',
+          blockNumber: log.blockNumber
+        }
+      })
+    })
+
+    const fundsReceivedEvents = publicClient.getLogs({
+      address: USDC_ADDRESS,
+      event: transferAbi,
+      fromBlock,
+      toBlock,
+      args: {
+        to: selectedContract
+      }
+    }).then(logs => {
+      if (logs.length > 0) {
+        fetchMoonsUsdcBalance()
+      }
+      return logs.map(log => {
+        return {
+          title: 'Funds contributed',
+          actor: log.args.from ?? '0x',
+          message: `${formatUSDC(log.args.value ?? BigInt(0))} USDC` ?? '',
+          blockNumber: log.blockNumber
+        }
+      })
+    })
+
+    const allEventPromises = [adminAddedEvents, adminRemovedEvents,
+      participantAddedEvents, participantRemovedEvents,
+      fundsDisbursedEvents, nameChangedEvents, constitutionChangedEvents,
+      knockEvents, fundsReceivedEvents]
+    Promise.all(allEventPromises).then((
+      [ adminAddedEvents, adminRemovedEvents,
+        participantAddedEvents, participantRemovedEvents,
+        fundsDisbursedEvents, nameChangedEvents, constitutionChangedEvents,
+        knockEvents, fundsReceivedEvents ]) => {
+      const allEvents = [...adminAddedEvents, ...adminRemovedEvents,
+        ...participantAddedEvents, ...participantRemovedEvents,
+        ...fundsDisbursedEvents, ...nameChangedEvents, ...constitutionChangedEvents,
+        ...knockEvents, ...fundsReceivedEvents];
+      allEvents.sort((a, b) => Number(a.blockNumber - b.blockNumber));
+      return allEvents
+    }).then(addUserEvents)
+
+  }, [blockNumber])
+
+  useEffect(() => {
+    fetchName()
+    fetchConstitution()
+    fetchStartTime()
+    fetchCycleTime()
+    fetchMoonsUsdcBalance()
+    fetchAdmins()
+    fetchParticipants()
+    fetchMaximumAllowedDisbursement()
+    fetchNextAllowedDisburseTime()
+    return () => { }
 }, [])
 
   const isParticipant = participants[address] ? true : false
@@ -457,8 +589,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     if (!rank) return [BigInt(0), 0, BigInt(0)]
     if (!cycleTime) return [BigInt(0), 0, BigInt(0)]
     if (!participantCount) return [BigInt(0), 0, BigInt(0)]
-    const rankOffsetSeconds = ((rank - BigInt(1)) / participantCount) * cycleTime
-    const phaseSeconds = ((nowSeconds - startTime) + (((rank - BigInt(1)) / participantCount) * cycleTime)) % cycleTime
+    const rankOffsetSeconds = ((rank - BigInt(1)) * cycleTime) / participantCount
+    const phaseSeconds = (nowSeconds - startTime + rankOffsetSeconds) % cycleTime
     const phaseSecondsNumber = Number(phaseSeconds)
     const cycleRadians = cycleTimeNumber !== 0 ? (phaseSecondsNumber * 2 * Math.PI / cycleTimeNumber) : 0
     const cycleMaxTime =  currentCycleMid + rankOffsetSeconds
@@ -476,7 +608,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   const yourCycleLocation = getCycleLocation(address)
   const yourMarkers = isParticipant ? [{ radians: yourCycleLocation[1], color: "#007BFF"}] : []
-  const participantMarkers = Object.keys(participants).map(addr => {
+  const participantMarkers = Object.keys(participants).filter(addr => addr !== address).map(addr => {
     const cycleLocation = getCycleLocation(addr as Address)
     return { radians: cycleLocation[1], color: getColorFromAddress(addr as Address) }
   })
@@ -593,7 +725,10 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           </h3>
           {eventFeed.map((event, index) => (
             <div key={index}>
-              {event}
+              <p>{event.title}</p>
+              <AddressBubble address={event.actor} textColor={getColorFromAddress(event.actor)} />
+              <p>{event.message}</p>
+              <p>{event.blockNumber.toString()}</p>
             </div>
           ))}
         </div>

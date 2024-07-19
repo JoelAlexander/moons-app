@@ -17,10 +17,12 @@ const coinbaseWalletConnector =
 const walletConnectConnector =
     walletConnect({ projectId: '4f0f56872ba068cb3260c517ff17a48e' })
 
+console.log(import.meta.env.VITE_BASE_NODE);
+
 const config = createConfig({
     chains: [ base ],
     transports: {
-        [base.id]: http(base.rpcUrls.default.http[0])
+        [base.id]: http(import.meta.env.VITE_BASE_NODE)
     },
     connectors: [coinbaseWalletConnector, walletConnectConnector],
     
