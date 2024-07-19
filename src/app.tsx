@@ -18,74 +18,6 @@ function formatUSDC(amount: bigint): string {
   return `${integerPart.toString()}.${fractionalString}`;
 }
 
-const ContractList = ({ contracts, onSelectContract, onImport, onDeploy, onRemove }: { contracts: Address[], onSelectContract: (address: Address) => void, onImport: () => void, onDeploy: () => void, onRemove: (address: Address) => void }) => {
-  const { publicClient } = useWalletClientContext()
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null)
-  const [ contractNames, setContractNames ] = useState<{[key: Address]: string}>({})
-
-  useEffect(() => {
-    Promise.all(contracts.map((c: Address) => {
-      return publicClient.readContract({
-        abi: MOONS_ABI,
-        address: c,
-        functionName: 'name'
-      }).then(n => {
-        return [c, n as string]
-      })
-    })).then(es => setContractNames(Object.fromEntries(es as [Address, string][])))
-  }, [contracts])
-
-  const startLongPress = (contract: Address) => {
-    longPressTimer.current = setTimeout(() => {
-      if (window.confirm(`Are you sure you want to remove contract ${contract}?`)) {
-        onRemove(contract)
-      }
-    }, 800)
-  }
-
-  const endLongPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-    }
-  }
-
-  useEffect(() => {
-    return () => {
-      if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current)
-      }
-    }
-  }, [])
-
-  const abrev = (addr: Address) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
-  }
-
-  return (
-    <div style={{ width: '200px', overflowY: 'auto', borderRight: '1px solid #ddd', padding: '10px' }}>
-      {contracts.map((contract) => (
-        <div
-          key={contract}
-          style={{ padding: '10px', border: '1px solid #ddd', marginBottom: '10px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          onMouseDown={() => startLongPress(contract)}
-          onMouseUp={endLongPress}
-          onMouseLeave={endLongPress}
-          onTouchStart={() => startLongPress(contract)}
-          onTouchEnd={endLongPress}
-        >
-          <span onClick={() => onSelectContract(contract)}>{contractNames[contract] ? contractNames[contract] : abrev(contract)}</span>
-        </div>
-      ))}
-      <div style={{ padding: '10px', border: '1px solid #ddd', marginTop: '10px', cursor: 'pointer' }} onClick={onImport}>
-        Import
-      </div>
-      <div style={{ padding: '10px', border: '1px solid #ddd', marginTop: '10px', cursor: 'pointer' }} onClick={onDeploy}>
-        Deploy
-      </div>
-    </div>
-  )
-}
-
 const ImportMoons = ({ onAddContract }: { onAddContract: (address: Address) => void }) => {
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
@@ -859,7 +791,7 @@ const App = () => {
     if (!contractName) {
       return;
     }
-  
+
     let daysPerCycle;
     while (true) {
       const daysInput = window.prompt("Please enter the number of days per Moons cycle (between 2 and 90).\nWARNING: Cycle length is immutable and may not be changed later");
@@ -870,9 +802,9 @@ const App = () => {
         break;
       }
     }
-  
+
     const secondsPerCycle = daysPerCycle * 24 * 60 * 60; // Convert days to seconds
-  
+
     if (window.confirm(`Are you sure you want to deploy a new Moons contract named ${contractName} with a cycle length of ${daysPerCycle} days?`)) {
       const args = [contractName, "", secondsPerCycle];
       const data = encodeDeployData({ abi: MOONS_ABI, bytecode: MOONS_BYTECODE, args });
@@ -912,21 +844,91 @@ const App = () => {
   const mainContent = selectedContract !== '0x' ?
     <Moons selectedContract={selectedContract} /> : <ImportMoons onAddContract={handleAddContract}/>
 
-  return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <ContractList
-        contracts={contracts}
-        onSelectContract={handleSelectContract}
-        onImport={handleImport}
-        onDeploy={handleDeploy}
-        onRemove={handleRemoveContract}
-      />
+  return (<>
+    <ContractList
+      contracts={contracts}
+      onSelectContract={handleSelectContract}
+      onImport={handleImport}
+      onDeploy={handleDeploy}
+      onRemove={handleRemoveContract}
+    />
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+
       <div style={{ flexGrow: 1, padding: '20px' }}>
         {mainContent}
       </div>
       {error && <div style={{ color: 'red', padding: '10px' }}>{error}</div>}
     </div>
+  </>)
+}
+
+const ContractList = ({ contracts, onSelectContract, onImport, onDeploy, onRemove }: { contracts: Address[], onSelectContract: (address: Address) => void, onImport: () => void, onDeploy: () => void, onRemove: (address: Address) => void }) => {
+  const { publicClient } = useWalletClientContext()
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null)
+  const [ contractNames, setContractNames ] = useState<{[key: Address]: string}>({})
+
+  useEffect(() => {
+    Promise.all(contracts.map((c: Address) => {
+      return publicClient.readContract({
+        abi: MOONS_ABI,
+        address: c,
+        functionName: 'name'
+      }).then(n => {
+        return [c, n as string]
+      })
+    })).then(es => setContractNames(Object.fromEntries(es as [Address, string][])))
+  }, [contracts])
+
+  const startLongPress = (contract: Address) => {
+    longPressTimer.current = setTimeout(() => {
+      if (window.confirm(`Are you sure you want to remove contract ${contract}?`)) {
+        onRemove(contract)
+      }
+    }, 800)
+  }
+
+  const endLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current)
+      }
+    }
+  }, [])
+
+  const abrev = (addr: Address) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+  }
+
+  return (
+    <div style={{ width: '100%', overflowX: 'auto', display: 'flex', borderBottom: '1px solid #ddd', cursor: 'grab' }}>
+      {contracts.map((contract) => (
+        <div
+          key={contract}
+          style={{ padding: '0.5em', border: '1px solid #ddd', margin: '0.5em', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: '150px' }}
+          onMouseDown={() => startLongPress(contract)}
+          onMouseUp={endLongPress}
+          onMouseLeave={endLongPress}
+          onTouchStart={() => startLongPress(contract)}
+          onTouchEnd={endLongPress}
+        >
+          <span onClick={() => onSelectContract(contract)}>{contractNames[contract] ? contractNames[contract] : abrev(contract)}</span>
+        </div>
+      ))}
+      <div style={{ margin: '0.5em', padding: '0.5em', border: '1px solid #ddd', cursor: 'pointer', minWidth: '150px' }} onClick={onImport}>
+        Import
+      </div>
+      <div style={{ margin: '0.5em', padding: '0.5em', border: '1px solid #ddd', cursor: 'pointer', minWidth: '150px' }} onClick={onDeploy}>
+        Deploy
+      </div>
+    </div>
   )
 }
+
 
 export default App
