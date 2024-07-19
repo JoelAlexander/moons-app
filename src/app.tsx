@@ -107,8 +107,9 @@ const ImportMoons = ({ onAddContract }: { onAddContract: (address: Address) => v
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Enter contract address"
+        style={{ marginRight: '0.5em' }}
       />
-      <button onClick={handleAdd}>Add</button>
+      <button onClick={handleAdd} style={{ marginRight: '0.5em' }}>Add</button>
       {error && <div style={{ color: 'red' }}>{error}</div>}
     </div>
   )
@@ -133,6 +134,21 @@ function getSortedAddressesByRank(obj: {[key: Address]: BigInt}): Address[] {
       if (bigIntA > bigIntB) return 1;
       return 0;
   }) as Address[];
+}
+
+function timeAgo(currentBlock: bigint, eventBlock: bigint): string {
+  const blockTimeInSeconds = BigInt(2);
+  const secondsAgo = (currentBlock - eventBlock) * blockTimeInSeconds;
+
+  if (secondsAgo < 60) {
+      return `${secondsAgo} second${secondsAgo !== BigInt(1) ? 's' : ''} ago`;
+  } else if (secondsAgo < 3600) {
+      const minutesAgo = secondsAgo / BigInt(60);
+      return `${minutesAgo} minute${minutesAgo !== BigInt(1) ? 's' : ''} ago`;
+  } else {
+      const hoursAgo = secondsAgo / BigInt(3600);
+      return `${hoursAgo} hour${hoursAgo !== BigInt(1) ? 's' : ''} ago`;
+  }
 }
 
 function usePrevious<T>(
@@ -647,7 +663,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       <AddressBubble
         key={`admin-${addr}`}
         address={addr}
-        textColor='#F6F1D5'
+        textColor={getColorFromAddress(addr)}
         onLongPress={() => isAdmin && removeAdmin(addr)}
       />
     )
@@ -664,7 +680,27 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           <h1 style={{ fontFamily: 'monospace', fontSize: '6em', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', marginTop: '1em'}}>
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', marginTop: '1em', marginBottom: '1em'}}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+            {showKnockInput ? (
+              <div>
+                <input
+                  type="text"
+                  placeholder="Knock message"
+                  value={knockMemo}
+                  onChange={e => setKnockMemo(e.target.value)}
+                  style={{ marginRight: '0.5em' }}
+                />
+                <button onClick={knock} disabled={!knockMemo} style={{ marginRight: '0.5em' }}>Knock</button>
+                <button onClick={() => setShowKnockInput(false)}>Cancel</button>
+              </div>
+            ) : (
+              <button onClick={() => setShowKnockInput(true)}>Knock</button>
+            )}
+        </div>
+        {!isParticipant && <h4 style={{ fontSize: '1em', margin: '0', alignSelf: 'center' }}>You are not currently a participant of this Moons protocol instance</h4>}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {isParticipant && <h4 style={{ fontSize: '1.5em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{phaseLabel}</h4>}
           <h4 style={{ fontSize: '1.3em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
@@ -677,24 +713,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       <SineWave height={200} width={800} markers={markers} />
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', marginBottom: '2em'}}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-          {!isParticipant && (
-            <div style={{ marginBottom: '1em'}}>
-              {showKnockInput ? (
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Knock message"
-                    value={knockMemo}
-                    onChange={e => setKnockMemo(e.target.value)}
-                  />
-                  <button onClick={knock} disabled={!knockMemo}>Knock</button>
-                  <button onClick={() => setShowKnockInput(false)}>Cancel</button>
-                </div>
-              ) : (
-                <button onClick={() => setShowKnockInput(true)}>Knock</button>
-              )}
-            </div>
-          )}
           {isParticipant && mayDisburse && (
             <div style={{ marginBottom: '1em'}}>
               {showDisbursementInput ? (
@@ -704,9 +722,10 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
                     placeholder="Disbursement Value"
                     value={disbursementValue}
                     onChange={handleDisbursementChange}
+                    style={{ marginRight: '0.5em' }}
                   />
-                  <button onClick={disburseFunds} disabled={!!disbursmentError || !disbursementValue}>Disburse</button>
-                  <button onClick={() => setShowDisbursementInput(false)}>Cancel</button>
+                  <button onClick={disburseFunds} style={{ marginRight: '0.5em' }} disabled={!!disbursmentError || !disbursementValue}>Disburse</button>
+                  <button onClick={() => setShowDisbursementInput(false)} style={{ marginRight: '0.5em' }}>Cancel</button>
                   {disbursmentError && <div style={{ color: 'red' }}>{disbursmentError}</div>}
                 </div>
               ) : (
@@ -714,28 +733,14 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               )}
             </div>
           )}
-          {!isParticipant && <h4 style={{ fontSize: '1em', margin: '0', marginBottom: '1em', alignSelf: 'center' }}>You are not currently a participant of this Moons protocol instance</h4>}
           {isParticipant && mayDisburse && <h4 style={{ fontSize: '2em', fontWeight: 'bold', fontFamily: 'monospace', margin: '0', marginBottom: '1em', alignSelf: 'center' }}>{formatUSDC(maximumAllowedDisbursement)} USDC</h4>}
         </div>
       </div>
       <div style={{display: 'flex', flexDirection: 'row'}}>
-        <div style={{display: 'flex', flexDirection: 'column', flexGrow: '3'}}>
-          <h3 style={{ margin: '0' }}>
-            Event feed
-          </h3>
-          {eventFeed.map((event, index) => (
-            <div key={index}>
-              <p>{event.title}</p>
-              <AddressBubble address={event.actor} textColor={getColorFromAddress(event.actor)} />
-              <p>{event.message}</p>
-              <p>{event.blockNumber.toString()}</p>
-            </div>
-          ))}
-        </div>
-        <div style={{display: 'flex', flexDirection: 'column', flexGrow: '1'}}>
+        <div style={{display: 'flex', flexDirection: 'column', flexGrow: '1.618'}}>
           <h3 style={{ margin: '0' }}>
             Participants
-            {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)}>+</button>}
+            {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)} style={{ marginLeft: '0.5em' }}>+</button>}
           </h3>
           {showAddParticipant && (
             <div>
@@ -744,9 +749,10 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
                 placeholder="Participant Address"
                 value={participantAddress}
                 onChange={(e) => setParticipantAddress(e.target.value)}
+                style={{ marginRight: '0.5em' }}
               />
-              <button onClick={addParticipant}>Add</button>
-              <button onClick={() => setShowAddParticipant(false)}>Cancel</button>
+              <button onClick={addParticipant} style={{ marginRight: '0.5em' }}>Add</button>
+              <button onClick={() => setShowAddParticipant(false)} style={{ marginRight: '0.5em' }}>Cancel</button>
             </div>
           )}
           <div style={{ display: 'flex', marginBottom: '1em' }}>
@@ -755,7 +761,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           
           <h3 style={{ margin: '0' }}>
             Administrators
-            {isAdmin && !showAddAdmin && <button onClick={() => setShowAddAdmin(true)}>+</button>}
+            {isAdmin && !showAddAdmin && <button onClick={() => setShowAddAdmin(true)} style={{ marginLeft: '0.5em' }}>+</button>}
           </h3>
           {showAddAdmin && (
             <div>
@@ -764,15 +770,30 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
                 placeholder="Admin Address"
                 value={adminAddress}
                 onChange={(e) => setAdminAddress(e.target.value)}
+                style={{ marginRight: '0.5em' }}
               />
-              <button onClick={addAdmin}>Add</button>
-              <button onClick={() => setShowAddAdmin(false)}>Cancel</button>
+              <button onClick={addAdmin} style={{ marginRight: '0.5em' }}>Add</button>
+              <button onClick={() => setShowAddAdmin(false)} style={{ marginRight: '0.5em' }}>Cancel</button>
             </div>
           )}
           <div style={{ display: 'flex' }}>
             {adminList}
           </div>
-        </div>  
+        </div>
+        <div style={{display: 'flex', flexDirection: 'column', flexGrow: '1', paddingRight: '1em'}}>
+          {eventFeed.map((event, index) => (
+            <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1em', borderRadius: '20px', background: '#333333', paddingLeft: '1em', paddingRight: '1em', paddingTop: '1em', paddingBottom: '0.5em' }}>
+              <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: '0', alignContent: 'center' }}>{event.title}</h4>
+                <p style={{ color: '#F6F1D5', margin: '0' }}>{timeAgo(blockNumber, event.blockNumber)}</p>
+              </div>
+              <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+                <AddressBubble address={event.actor} textColor={getColorFromAddress(event.actor)} />
+                <p style={{ color: '#F6F1D5', marginLeft: '0.5em', alignContent: 'center' }}>{event.message}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

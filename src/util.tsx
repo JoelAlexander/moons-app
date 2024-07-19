@@ -59,7 +59,7 @@ const styles = {
   bubble: {
     display: 'inline-block',
     padding: '5px 10px',
-    border: '2px solid #007BFF',
+    border: '2px solid #999999',
     borderRadius: '20px',
     cursor: 'pointer',
     userSelect: 'none',

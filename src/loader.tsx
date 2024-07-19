@@ -63,7 +63,9 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
     <button key={connector.uid} onClick={() => {
       setShowWalletOptions(false)
       connectWallet({ connector })
-    }}>
+    }}
+    style={{ marginLeft: '0.5em' }}
+    >
       {connector.name}
     </button>
   ))
@@ -77,7 +79,7 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
         {!address && !showWalletOptions && <button onClick={beginConnect}>Connect Wallet</button>}
         {!address && showWalletOptions && walletOptions}
         {address && <AddressBubble address={address} textColor='#3E3E3E' />}
-        {address && <button onClick={disconnect}>Disconnect Wallet</button>}
+        {address && <button onClick={disconnect} style={{ marginLeft: '0.5em' }}>Disconnect Wallet</button>}
       </div>
     </div>
   );
