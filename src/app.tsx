@@ -598,7 +598,16 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   const isParticipant = participants[address] ? true : false
   const cycleTimeNumber = Number(cycleTime)
-  const participantCount = BigInt(Object.keys(participants).length)
+  const participantCountNumber = Object.keys(participants).length
+  const participantCount = BigInt(participantCountNumber)
+
+  const nowSeconds = BigInt(Date.now()) / BigInt(1000)
+  const mayDisburse = nextAllowedDisburseTime ? nowSeconds > nextAllowedDisburseTime : false
+  const currentCycleSecondsElapsed = cycleTime ? (nowSeconds - startTime) % cycleTime : BigInt(0)
+  const currentCycleSecondsRemaining = cycleTime - currentCycleSecondsElapsed
+  const currentCycleEnd = nowSeconds  + currentCycleSecondsRemaining
+  const currentCycleMid = currentCycleEnd - (cycleTime / BigInt(2))
+  const currentCycleStart = currentCycleEnd - cycleTime
 
   const getCycleLocation = (address: Address): [bigint, number, bigint] => {
     const rank = participants[address]
@@ -613,39 +622,43 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     return [rankOffsetSeconds, cycleRadians, cycleMaxTime]
   }
 
-  const nowSeconds = BigInt(Date.now()) / BigInt(1000)
-  const mayDisburse = nextAllowedDisburseTime ? nowSeconds > nextAllowedDisburseTime : false
-  const currentCycleSecondsElapsed = cycleTime ? (nowSeconds - startTime) % cycleTime : BigInt(0)
-  const currentCycleSecondsRemaining = cycleTime - currentCycleSecondsElapsed
-  const currentCycleEnd = nowSeconds  + currentCycleSecondsRemaining
-  const currentCycleEndIn = nowSeconds - currentCycleEnd
-  const currentCycleMid = currentCycleEnd - (cycleTime / BigInt(2))
-  const currentCycleStart = currentCycleEnd - cycleTime
-
   const yourCycleLocation = getCycleLocation(address)
-  const yourMarkers = isParticipant ? [{ radians: yourCycleLocation[1], color: "#007BFF"}] : []
+  const yourCycleRadians = yourCycleLocation[1]
+  const yourMarkers = isParticipant ? [{ radians: yourCycleRadians, color: "#007BFF"}] : []
   const participantMarkers = Object.keys(participants).filter(addr => addr !== address).map(addr => {
     const cycleLocation = getCycleLocation(addr as Address)
     return { radians: cycleLocation[1], color: getColorFromAddress(addr as Address) }
   })
   const markers = [ ...yourMarkers,  ...participantMarkers]
 
+  const allowanceMaxRatio = 1 / Math.sqrt(participantCountNumber)
+  const yourCycleMultiplier = participantCountNumber ? (Math.sin(yourCycleRadians / 2) ** 2) * allowanceMaxRatio : 0
+
   const yourCycleMaxTime = yourCycleLocation ? yourCycleLocation[2] : BigInt(0)
   const currentCycleMaxAgo = nowSeconds - yourCycleMaxTime
   const currentCycleMaxIn = yourCycleMaxTime - nowSeconds
 
+  const formatTime = (totalSeconds: bigint) => {
+    const days = totalSeconds / BigInt(86400);
+    const hours = totalSeconds % BigInt(86400) / BigInt(3600);
+    const minutes = totalSeconds % BigInt(3600) / BigInt(60);
+    const seconds = totalSeconds % BigInt(60);
+  
+    const pad = (n: bigint) => n.toString().padStart(2, '0');
+  
+    return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+  };
+  
   const phaseLabel = yourCycleMaxTime > nowSeconds ? 'Waxing' : 'Waning';
-  const timeFromMaxSeconds = yourCycleMaxTime > nowSeconds ? Number(currentCycleMaxIn) : Number(currentCycleMaxAgo);
-  const timeFromMaxHMS = new Date(timeFromMaxSeconds * 1000).toISOString().substring(11, 19);
+  const timeFromMaxSeconds = yourCycleMaxTime > nowSeconds ? currentCycleMaxIn : currentCycleMaxAgo;
   const timeAboutMaxString = yourCycleMaxTime > nowSeconds
-    ? `${timeFromMaxHMS} until max`
-    : `${timeFromMaxHMS} since max`;
-
-  const timeFromMinSeconds = yourCycleMaxTime > nowSeconds ? Number(nowSeconds - currentCycleStart + yourCycleLocation[0]) : Number(currentCycleEnd + yourCycleLocation[0] - nowSeconds);
-  const timeFromMinHMS = new Date(timeFromMinSeconds * 1000).toISOString().substring(11, 19);
+    ? `${formatTime(timeFromMaxSeconds)} until max`
+    : `${formatTime(timeFromMaxSeconds)} since max`;
+  
+  const timeFromMinSeconds = yourCycleMaxTime > nowSeconds ? nowSeconds - currentCycleStart + yourCycleLocation[0] : currentCycleEnd + yourCycleLocation[0] - nowSeconds;
   const timeAboutMinString = yourCycleMaxTime > nowSeconds
-    ? `${timeFromMinHMS} since min`
-    : `${timeFromMinHMS} until min`;
+    ? `${formatTime(timeFromMinSeconds)} since min`
+    : `${formatTime(timeFromMinSeconds)} until min`;  
 
   const participantList = getSortedAddressesByRank(participants).map(addr => {
     return (
@@ -704,6 +717,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {isParticipant && <h4 style={{ fontSize: '1.5em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{phaseLabel}</h4>}
           <h4 style={{ fontSize: '1.3em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
+          <h4 style={{ fontSize: '1.3em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{`Max = ${(allowanceMaxRatio*100).toFixed(2)}%`}</h4>
         </div>
         {isParticipant && <div style={{ display: 'flex', flexDirection: 'column' }}>
           <h4 style={{ fontSize: '1.4em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{timeAboutMaxString}</h4>
@@ -713,8 +727,13 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       <SineWave height={200} width={800} markers={markers} />
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', marginBottom: '2em'}}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-          {isParticipant && mayDisburse && (
-            <div style={{ marginBottom: '1em'}}>
+        {isParticipant && mayDisburse && <h4 style={{ fontSize: '1.4em', margin: '0', marginBottom: '0.25em', alignSelf: 'center' }}>Current allowance</h4>}
+        <div style={{ display: 'flex', flexDirection: 'row', alignContent: 'center'}}>
+          {isParticipant && mayDisburse && <h4 style={{ fontSize: '2em', fontWeight: 'bold', fontFamily: 'monospace', margin: '0', marginBottom: '0.25em', marginRight: '0.5em', alignSelf: 'center' }}>{formatUSDC(maximumAllowedDisbursement)} USDC</h4>}
+          {isParticipant && mayDisburse && <h4 style={{ fontSize: '1.2em', fontFamily: 'monospace', margin: '0', marginBottom: '0.25em', alignSelf: 'center' }}>{`(${(yourCycleMultiplier * 100).toFixed(2)}%)`}</h4>}
+        </div>
+        {isParticipant && mayDisburse && (
+            <div style={{ marginBottom: '1em', marginTop: '1em'}}>
               {showDisbursementInput ? (
                 <div>
                   <input
@@ -733,7 +752,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               )}
             </div>
           )}
-          {isParticipant && mayDisburse && <h4 style={{ fontSize: '2em', fontWeight: 'bold', fontFamily: 'monospace', margin: '0', marginBottom: '1em', alignSelf: 'center' }}>{formatUSDC(maximumAllowedDisbursement)} USDC</h4>}
         </div>
       </div>
       <div style={{display: 'flex', flexDirection: 'row'}}>
