@@ -594,7 +594,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     fetchMaximumAllowedDisbursement()
     fetchNextAllowedDisburseTime()
     return () => { }
-}, [])
+}, [selectedContract])
 
   const isParticipant = participants[address] ? true : false
   const cycleTimeNumber = Number(cycleTime)
@@ -698,6 +698,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           <h1 style={{ fontFamily: 'monospace', fontSize: '6em', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
         </div>
       </div>
+      {!isParticipant && <h4 style={{ fontSize: '1em', margin: '0', marginTop: '0.5em' }}>You are not currently a participant of this Moons protocol instance</h4>}
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', marginTop: '1em', marginBottom: '1em'}}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
             {showKnockInput ? (
@@ -716,7 +717,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               <button onClick={() => setShowKnockInput(true)}>Knock</button>
             )}
         </div>
-        {!isParticipant && <h4 style={{ fontSize: '1em', margin: '0', alignSelf: 'center' }}>You are not currently a participant of this Moons protocol instance</h4>}
       </div>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>

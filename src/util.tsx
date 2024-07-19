@@ -63,5 +63,7 @@ const styles = {
     borderRadius: '20px',
     cursor: 'pointer',
     userSelect: 'none',
+    marginRight: '0.5em',
+    marginBottom: '0.5em'
   } as React.CSSProperties,
 };
