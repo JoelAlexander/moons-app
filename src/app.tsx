@@ -681,12 +681,17 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       />
     )
   })
+
+  const copyToClipboard = (addr: string) => {
+    navigator.clipboard.writeText(addr);
+    alert(`'${moonsName}' address copied to clipboard`);
+  };
   
   return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '800px' }}>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', marginRight: '1em' }}>
-          <QRCodeSVG value={getAddress(selectedContract)} fgColor='#F6F1D5' bgColor='#000000' />
+          <QRCodeSVG value={getAddress(selectedContract)} onClick={() => copyToClipboard(selectedContract)} fgColor='#F6F1D5' bgColor='#000000' />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start' }}>
           <h2 style={{ margin: '0' }}>{moonsName}</h2>
