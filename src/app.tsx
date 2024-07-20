@@ -39,9 +39,9 @@ const ImportMoons = ({ onAddContract }: { onAddContract: (address: Address) => v
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="Enter contract address"
-        style={{ marginRight: '0.5em' }}
+        style={{ marginRight: '0.5rem' }}
       />
-      <button onClick={handleAdd} style={{ marginRight: '0.5em' }}>Add</button>
+      <button onClick={handleAdd} style={{ marginRight: '0.5rem' }}>Add</button>
       {error && <div style={{ color: 'red' }}>{error}</div>}
     </div>
   )
@@ -620,77 +620,57 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   };
   
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%', maxWidth: '480px' }}>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', padding: '1rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', marginRight: '1em' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', marginRight: '1rem' }}>
           <QRCodeSVG value={getAddress(selectedContract)} onClick={() => copyToClipboard(selectedContract)} fgColor='#F6F1D5' bgColor='#000000' />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start' }}>
-          <h2 style={{ margin: '0' }}>{moonsName}</h2>
-          <h1 style={{ fontFamily: 'monospace', fontSize: '6em', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
-        </div>
-      </div>
-      {!isParticipant && <h4 style={{ fontSize: '1em', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>You are not currently a participant of this Moons protocol instance</h4>}
-      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', padding: '1rem'}}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-            {showKnockInput ? (
-              <div>
-                <input
-                  type="text"
-                  placeholder="Message"
-                  value={knockMemo}
-                  onChange={e => setKnockMemo(e.target.value)}
-                  style={{ marginRight: '0.5em' }}
-                />
-                <button onClick={knock} disabled={!knockMemo} style={{ marginRight: '0.5em' }}>Send</button>
-                <button onClick={() => setShowKnockInput(false)}>Cancel</button>
-              </div>
-            ) : (
-              <button onClick={() => setShowKnockInput(true)}>Broadcast a message</button>
-            )}
+          <h2 style={{ fontSize: '1.6rem', margin: '0' }}>{moonsName}</h2>
+          <h1 style={{ fontFamily: 'monospace', fontSize: '2rem', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', padding: '1rem'}}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {isParticipant && <h4 style={{ fontSize: '1.5em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{phaseLabel}</h4>}
-          <h4 style={{ fontSize: '1.3em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
-          <h4 style={{ fontSize: '1.3em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{`Max = ${(allowanceMaxRatio*100).toFixed(2)}%`}</h4>
+          {isParticipant && <h4 style={{ fontSize: '1.2rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{phaseLabel}</h4>}
+          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
+          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{`Max = ${(allowanceMaxRatio*100).toFixed(2)}%`}</h4>
         </div>
         {isParticipant && <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <h4 style={{ fontSize: '1.4em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{timeAboutMaxString}</h4>
-          <h4 style={{ fontSize: '1.4em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{timeAboutMinString}</h4>
+          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{timeAboutMaxString}</h4>
+          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{timeAboutMinString}</h4>
         </div>}
       </div>
       <div style={{display: 'flex', flexDirection: 'row', width: '100%', justifyContent: 'center'}}>
-        <SineWave width={680} height={200} markers={markers} />
+        <SineWave width={480} height={148} markers={markers} />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', marginBottom: '2em'}}>
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-        {isParticipant && mayDisburse && <h4 style={{ fontSize: '1.4em', margin: '0', marginBottom: '0.25em', alignSelf: 'center' }}>Current allowance</h4>}
-        <div style={{ display: 'flex', flexDirection: 'row', alignContent: 'center'}}>
-          {isParticipant && mayDisburse && <h4 style={{ fontSize: '2em', fontWeight: 'bold', fontFamily: 'monospace', margin: '0', marginBottom: '0.25em', marginRight: '0.5em', alignSelf: 'center' }}>{formatUSDC(maximumAllowedDisbursement)} USDC</h4>}
-          {isParticipant && mayDisburse && <h4 style={{ fontSize: '1.2em', fontFamily: 'monospace', margin: '0', marginBottom: '0.25em', alignSelf: 'center' }}>{`(${(yourCycleMultiplier * 100).toFixed(2)}%)`}</h4>}
-        </div>
-        {isParticipant && mayDisburse && (
-            <div style={{ marginBottom: '1em', marginTop: '1em'}}>
-              {showDisbursementInput ? (
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Disbursement Value"
-                    value={disbursementValue}
-                    onChange={handleDisbursementChange}
-                    style={{ marginRight: '0.5em' }}
-                  />
-                  <button onClick={disburseFunds} style={{ marginRight: '0.5em' }} disabled={!!disbursmentError || !disbursementValue}>Disburse</button>
-                  <button onClick={() => setShowDisbursementInput(false)} style={{ marginRight: '0.5em' }}>Cancel</button>
-                  {disbursmentError && <div style={{ color: 'red' }}>{disbursmentError}</div>}
-                </div>
-              ) : (
-                <button onClick={() => setShowDisbursementInput(true)}>Disburse Funds</button>
-              )}
-            </div>
-          )}
+          {isParticipant && mayDisburse && <h4 style={{ fontSize: '1rem', margin: '0', marginBottom: '0.25rem', alignSelf: 'center' }}>Current allowance</h4>}
+          <div style={{ display: 'flex', flexDirection: 'row', alignContent: 'center'}}>
+            {isParticipant && mayDisburse && <h4 style={{ fontSize: '2rem', fontWeight: 'bold', fontFamily: 'monospace', margin: '0', marginBottom: '0.25rem', marginRight: '0.5rem', alignSelf: 'center' }}>{formatUSDC(maximumAllowedDisbursement)} USDC</h4>}
+            {isParticipant && mayDisburse && <h4 style={{ fontSize: '1rem', fontFamily: 'monospace', margin: '0', marginBottom: '0.25rem', alignSelf: 'center' }}>{`(${(yourCycleMultiplier * 100).toFixed(2)}%)`}</h4>}
+          </div>
+          {isParticipant && mayDisburse && (
+              <div style={{ marginBottom: '1rem', marginTop: '1rem'}}>
+                {showDisbursementInput ? (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Disbursement Value"
+                      value={disbursementValue}
+                      onChange={handleDisbursementChange}
+                      style={{ marginRight: '0.5rem' }}
+                    />
+                    <button onClick={disburseFunds} style={{ marginRight: '0.5rem' }} disabled={!!disbursmentError || !disbursementValue}>Disburse</button>
+                    <button onClick={() => setShowDisbursementInput(false)} style={{ marginRight: '0.5rem' }}>Cancel</button>
+                    {disbursmentError && <div style={{ color: 'red' }}>{disbursmentError}</div>}
+                  </div>
+                ) : (
+                  <button onClick={() => setShowDisbursementInput(true)}>Disburse Funds</button>
+                )}
+              </div>
+            )}
         </div>
       </div>
         <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
@@ -698,23 +678,43 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
             Recent activity
           </h3>
           {eventFeed.map((event, index) => (
-            <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1rem', marginTop: '1rem', borderRadius: '20px', background: '#333333', paddingLeft: '1em', paddingRight: '1em', paddingTop: '1em', paddingBottom: '0.5em' }}>
+            <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1rem', marginTop: '1rem', borderRadius: '20px', background: '#333333', paddingLeft: '1rem', paddingRight: '1rem', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
               <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
               <h4 style={{ margin: '0', alignContent: 'center' }}>{event.title}</h4>
                 <p style={{ color: '#F6F1D5', margin: '0' }}>{timeAgo(blockNumber, event.blockNumber)}</p>
               </div>
               <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
                 <AddressBubble address={event.actor} textColor={getColorFromAddress(event.actor)} />
-                <p style={{ color: '#F6F1D5', marginLeft: '0.5em', alignContent: 'center' }}>{event.message}</p>
+                <p style={{ color: '#F6F1D5', marginLeft: '0.5rem', alignContent: 'center' }}>{event.message}</p>
               </div>
             </div>
           ))}
           { eventFeed.length == 0 && <p style={{ color: '#e8eced' }}>No recent activity to show</p>}
+          {!isParticipant && <h4 style={{ fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>You are not currently a participant of this Moons protocol instance</h4>}
+          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', marginTop: '0.5rem'}}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                {showKnockInput ? (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Message"
+                      value={knockMemo}
+                      onChange={e => setKnockMemo(e.target.value)}
+                      style={{ marginRight: '0.5rem' }}
+                    />
+                    <button onClick={knock} disabled={!knockMemo} style={{ marginRight: '0.5rem' }}>Send</button>
+                    <button onClick={() => setShowKnockInput(false)}>Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowKnockInput(true)}>Broadcast a message</button>
+                )}
+            </div>
+          </div>
         </div>
         <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
           <h3 style={{ margin: '0' }}>
             Participants
-            {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)} style={{ marginLeft: '0.5em' }}>+</button>}
+            {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)} style={{ marginLeft: '0.5rem' }}>+</button>}
           </h3>
           {showAddParticipant && (
             <div>
@@ -723,19 +723,19 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
                 placeholder="Participant Address"
                 value={participantAddress}
                 onChange={(e) => setParticipantAddress(e.target.value)}
-                style={{ marginRight: '0.5em' }}
+                style={{ marginRight: '0.5rem' }}
               />
-              <button onClick={addParticipant} style={{ marginRight: '0.5em' }}>Add</button>
-              <button onClick={() => setShowAddParticipant(false)} style={{ marginRight: '0.5em' }}>Cancel</button>
+              <button onClick={addParticipant} style={{ marginRight: '0.5rem' }}>Add</button>
+              <button onClick={() => setShowAddParticipant(false)} style={{ marginRight: '0.5rem' }}>Cancel</button>
             </div>
           )}
-          <div style={{ display: 'flex', marginBottom: '1em' }}>
+          <div style={{ display: 'flex', marginBottom: '1rem' }}>
             {participantList}
           </div>
           
           <h3 style={{ margin: '0' }}>
             Administrators
-            {isAdmin && !showAddAdmin && <button onClick={() => setShowAddAdmin(true)} style={{ marginLeft: '0.5em' }}>+</button>}
+            {isAdmin && !showAddAdmin && <button onClick={() => setShowAddAdmin(true)} style={{ marginLeft: '0.5rem' }}>+</button>}
           </h3>
           {showAddAdmin && (
             <div>
@@ -744,17 +744,16 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
                 placeholder="Admin Address"
                 value={adminAddress}
                 onChange={(e) => setAdminAddress(e.target.value)}
-                style={{ marginRight: '0.5em' }}
+                style={{ marginRight: '0.5rem' }}
               />
-              <button onClick={addAdmin} style={{ marginRight: '0.5em' }}>Add</button>
-              <button onClick={() => setShowAddAdmin(false)} style={{ marginRight: '0.5em' }}>Cancel</button>
+              <button onClick={addAdmin} style={{ marginRight: '0.5rem' }}>Add</button>
+              <button onClick={() => setShowAddAdmin(false)} style={{ marginRight: '0.5rem' }}>Cancel</button>
             </div>
           )}
           <div style={{ display: 'flex' }}>
             {adminList}
           </div>
         </div>
-        
     </div>
   )
 }
@@ -919,7 +918,7 @@ const ContractList = ({ contracts, onSelectContract, onImport, onDeploy, onRemov
       {contracts.map((contract) => (
         <div
           key={contract}
-          style={{ padding: '0.5em', border: '1px solid #ddd', margin: '0.5em', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: '150px' }}
+          style={{ padding: '0.5rem', border: '1px solid #ddd', margin: '0.5rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: '150px' }}
           onMouseDown={() => startLongPress(contract)}
           onMouseUp={endLongPress}
           onMouseLeave={endLongPress}
@@ -929,10 +928,10 @@ const ContractList = ({ contracts, onSelectContract, onImport, onDeploy, onRemov
           <span onClick={() => onSelectContract(contract)}>{contractNames[contract] ? contractNames[contract] : abrev(contract)}</span>
         </div>
       ))}
-      <div style={{ margin: '0.5em', padding: '0.5em', border: '1px solid #ddd', cursor: 'pointer', minWidth: '150px' }} onClick={onImport}>
+      <div style={{ margin: '0.5rem', padding: '0.5rem', border: '1px solid #ddd', cursor: 'pointer', minWidth: '150px' }} onClick={onImport}>
         Import
       </div>
-      <div style={{ margin: '0.5em', padding: '0.5em', border: '1px solid #ddd', cursor: 'pointer', minWidth: '150px' }} onClick={onDeploy}>
+      <div style={{ margin: '0.5rem', padding: '0.5rem', border: '1px solid #ddd', cursor: 'pointer', minWidth: '150px' }} onClick={onDeploy}>
         Deploy
       </div>
     </div>
