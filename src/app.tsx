@@ -466,7 +466,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }).then(logs => {
       return logs.map(log => {
         return {
-          title: 'Knock',
+          title: 'Message received',
           actor: log.args.addr ?? '0x',
           message: log.args.memo ?? '',
           blockNumber: log.blockNumber
@@ -620,8 +620,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   };
   
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '800px' }}>
-      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', padding: '1rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', marginRight: '1em' }}>
           <QRCodeSVG value={getAddress(selectedContract)} onClick={() => copyToClipboard(selectedContract)} fgColor='#F6F1D5' bgColor='#000000' />
         </div>
@@ -630,27 +630,27 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           <h1 style={{ fontFamily: 'monospace', fontSize: '6em', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
         </div>
       </div>
-      {!isParticipant && <h4 style={{ fontSize: '1em', margin: '0', marginTop: '0.5em' }}>You are not currently a participant of this Moons protocol instance</h4>}
-      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', marginTop: '1em', marginBottom: '1em'}}>
+      {!isParticipant && <h4 style={{ fontSize: '1em', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>You are not currently a participant of this Moons protocol instance</h4>}
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', padding: '1rem'}}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
             {showKnockInput ? (
               <div>
                 <input
                   type="text"
-                  placeholder="Knock message"
+                  placeholder="Message"
                   value={knockMemo}
                   onChange={e => setKnockMemo(e.target.value)}
                   style={{ marginRight: '0.5em' }}
                 />
-                <button onClick={knock} disabled={!knockMemo} style={{ marginRight: '0.5em' }}>Knock</button>
+                <button onClick={knock} disabled={!knockMemo} style={{ marginRight: '0.5em' }}>Send</button>
                 <button onClick={() => setShowKnockInput(false)}>Cancel</button>
               </div>
             ) : (
-              <button onClick={() => setShowKnockInput(true)}>Knock</button>
+              <button onClick={() => setShowKnockInput(true)}>Broadcast a message</button>
             )}
         </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', padding: '1rem'}}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {isParticipant && <h4 style={{ fontSize: '1.5em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{phaseLabel}</h4>}
           <h4 style={{ fontSize: '1.3em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
@@ -661,7 +661,9 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           <h4 style={{ fontSize: '1.4em', fontFamily: 'monospace', margin: '0', marginTop: '0.5em' }}>{timeAboutMinString}</h4>
         </div>}
       </div>
-      <SineWave height={200} width={800} markers={markers} />
+      <div style={{display: 'flex', flexDirection: 'row', width: '100%', justifyContent: 'center'}}>
+        <SineWave width={680} height={200} markers={markers} />
+      </div>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', marginBottom: '2em'}}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
         {isParticipant && mayDisburse && <h4 style={{ fontSize: '1.4em', margin: '0', marginBottom: '0.25em', alignSelf: 'center' }}>Current allowance</h4>}
@@ -691,8 +693,25 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           )}
         </div>
       </div>
-      <div style={{display: 'flex', flexDirection: 'row'}}>
-        <div style={{display: 'flex', flexDirection: 'column', flexGrow: '1.618'}}>
+        <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
+          <h3 style={{ margin: '0' }}>
+            Recent activity
+          </h3>
+          {eventFeed.map((event, index) => (
+            <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1rem', marginTop: '1rem', borderRadius: '20px', background: '#333333', paddingLeft: '1em', paddingRight: '1em', paddingTop: '1em', paddingBottom: '0.5em' }}>
+              <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: '0', alignContent: 'center' }}>{event.title}</h4>
+                <p style={{ color: '#F6F1D5', margin: '0' }}>{timeAgo(blockNumber, event.blockNumber)}</p>
+              </div>
+              <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+                <AddressBubble address={event.actor} textColor={getColorFromAddress(event.actor)} />
+                <p style={{ color: '#F6F1D5', marginLeft: '0.5em', alignContent: 'center' }}>{event.message}</p>
+              </div>
+            </div>
+          ))}
+          { eventFeed.length == 0 && <p style={{ color: '#e8eced' }}>No recent activity to show</p>}
+        </div>
+        <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
           <h3 style={{ margin: '0' }}>
             Participants
             {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)} style={{ marginLeft: '0.5em' }}>+</button>}
@@ -735,21 +754,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
             {adminList}
           </div>
         </div>
-        <div style={{display: 'flex', flexDirection: 'column', flexGrow: '1', paddingRight: '1em'}}>
-          {eventFeed.map((event, index) => (
-            <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1em', borderRadius: '20px', background: '#333333', paddingLeft: '1em', paddingRight: '1em', paddingTop: '1em', paddingBottom: '0.5em' }}>
-              <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-              <h4 style={{ margin: '0', alignContent: 'center' }}>{event.title}</h4>
-                <p style={{ color: '#F6F1D5', margin: '0' }}>{timeAgo(blockNumber, event.blockNumber)}</p>
-              </div>
-              <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
-                <AddressBubble address={event.actor} textColor={getColorFromAddress(event.actor)} />
-                <p style={{ color: '#F6F1D5', marginLeft: '0.5em', alignContent: 'center' }}>{event.message}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+        
     </div>
   )
 }
@@ -783,7 +788,15 @@ const App = () => {
   }
 
   const handleImport = () => {
-    setSelectedContract('0x')
+    const contractAddress = window.prompt("Please enter the address of the Moons contract to import.");
+    if (!contractAddress) {
+      return;
+    } else if (!isAddress(contractAddress)){
+      alert("Invalid input. Please enter a valid between 2 and 90.");
+      return;
+    }
+    handleAddContract(contractAddress as Address)
+    setSelectedContract(contractAddress as Address)
   }
 
   const handleDeploy = async () => {
@@ -794,10 +807,10 @@ const App = () => {
 
     let daysPerCycle;
     while (true) {
-      const daysInput = window.prompt("Please enter the number of days per Moons cycle (between 2 and 90).\nWARNING: Cycle length is immutable and may not be changed later");
+      const daysInput = window.prompt("Please enter the number of days per Moons cycle (between 1 and 90).\nWARNING: Cycle length is immutable and may not be changed later");
       daysPerCycle = daysInput ? parseInt(daysInput, 10) : 0;
-      if (isNaN(daysPerCycle) || daysPerCycle < 2 || daysPerCycle > 90) {
-        alert("Invalid input. Please enter a number between 2 and 90.");
+      if (isNaN(daysPerCycle) || daysPerCycle < 1 || daysPerCycle > 90) {
+        alert("Invalid input. Please enter a number between 1 and 90.");
       } else {
         break;
       }
@@ -841,25 +854,21 @@ const App = () => {
     setContracts(contracts.filter(contract => contract !== contractToRemove))
   }
 
-  const mainContent = selectedContract !== '0x' ?
-    <Moons selectedContract={selectedContract} /> : <ImportMoons onAddContract={handleAddContract}/>
+  const mainContent = selectedContract !== '0x' ? <Moons selectedContract={selectedContract} /> : null
 
-  return (<>
-    <ContractList
-      contracts={contracts}
-      onSelectContract={handleSelectContract}
-      onImport={handleImport}
-      onDeploy={handleDeploy}
-      onRemove={handleRemoveContract}
-    />
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-
-      <div style={{ flexGrow: 1, padding: '20px' }}>
-        {mainContent}
-      </div>
-      {error && <div style={{ color: 'red', padding: '10px' }}>{error}</div>}
+  return (
+  <div style={{ display: 'flex', flexDirection: 'row' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      <ContractList
+          contracts={contracts}
+          onSelectContract={handleSelectContract}
+          onImport={handleImport}
+          onDeploy={handleDeploy}
+          onRemove={handleRemoveContract}
+        />
+      {mainContent}
     </div>
-  </>)
+  </div>)
 }
 
 const ContractList = ({ contracts, onSelectContract, onImport, onDeploy, onRemove }: { contracts: Address[], onSelectContract: (address: Address) => void, onImport: () => void, onDeploy: () => void, onRemove: (address: Address) => void }) => {
