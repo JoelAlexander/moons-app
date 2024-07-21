@@ -97,6 +97,11 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [disbursmentError, setDisbursmentError] = useState('');
   const [blockNumber, setBlockNumber] = useState<bigint>(BigInt(0))
   const prevBlockNumber = usePrevious<bigint>(blockNumber, BigInt(0))
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [newName, setNewName] = useState(moonsName);
+  const [newConstitution, setNewConstitution] = useState(moonsConstitution);
+
 
   const usdcContract = useMemo(() => getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: USDC_ADDRESS }), [])
   const moonsContract = useMemo(() => getContract({ abi: MOONS_ABI, client: { public: publicClient }, address: selectedContract }), [])
@@ -177,9 +182,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       address: selectedContract,
       functionName: 'disburseFunds',
       args: [USDC_ADDRESS, valueInMicroUSDC, '']
-    }).then(_ => {
-      fetchMoonsUsdcBalance()
-      fetchNextAllowedDisburseTime()
     })
     setShowDisbursementInput(false)
     setDisbursementValue('0')
@@ -206,8 +208,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       address: selectedContract,
       functionName: 'addAdmin',
       args: [adminAddress, 'Welcome to our new admin.']
-    }).then(_ => {
-      fetchAdmins()
     })
     setShowAddAdmin(false)
     setAdminAddress('0x')
@@ -221,9 +221,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       address: selectedContract,
       functionName: 'addParticipant',
       args: [participantAddress, 'Welcome to our new participant.']
-    }).then(_ => {
-      fetchParticipants()
-      fetchMaximumAllowedDisbursement()
     })
     setShowAddParticipant(false)
     setParticipantAddress('0x')
@@ -238,7 +235,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         address: selectedContract,
         functionName: 'removeAdmin',
         args: [addressToRemove]
-      }).then(_ => fetchAdmins())
+      })
     }
   }
   
@@ -251,12 +248,35 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         address: selectedContract,
         functionName: 'removeParticipant',
         args: [addressToRemove]
-      }).then(_ => {
-        fetchParticipants()
-        fetchMaximumAllowedDisbursement()
       })
     }
-  }  
+  }
+
+  const setName = (name: string) => {
+    if (window.confirm(`Are you sure you want to set the name '${name}'?`)) {
+      walletClient?.writeContract({
+        chain: walletClient.chain,
+        account: address,
+        abi: MOONS_ABI,
+        address: selectedContract,
+        functionName: 'setName',
+        args: [name]
+      })
+    }
+  }
+
+  const setConstitution = (constitution: string) => {
+    if (window.confirm(`Are you sure you want to set the description '${constitution}'?`)) {
+      walletClient?.writeContract({
+        chain: walletClient.chain,
+        account: address,
+        abi: MOONS_ABI,
+        address: selectedContract,
+        functionName: 'setConstitution',
+        args: [constitution]
+      })
+    }
+  }
 
   const addUserEvents = (userEvents: MoonsUserEvent[]) => {
     setEventFeed(prevFeed => [...userEvents.toReversed(), ...prevFeed])
@@ -351,6 +371,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }).then(logs => {
       if (logs.length > 0) {
         fetchParticipants()
+        fetchMaximumAllowedDisbursement()
       }
       return logs.map(log => {
         return {
@@ -371,6 +392,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }).then(logs => {
       if (logs.length > 0) {
         fetchParticipants()
+        fetchMaximumAllowedDisbursement()
       }
       return logs.map(log => {
         return {
@@ -392,6 +414,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       return logs.map(log => {
         if (logs.length > 0) {
           fetchMoonsUsdcBalance()
+          fetchMaximumAllowedDisbursement()
         }
         return {
           title: 'Funds disbursed',
@@ -468,6 +491,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }).then(logs => {
       if (logs.length > 0) {
         fetchMoonsUsdcBalance()
+        fetchMaximumAllowedDisbursement()
       }
       return logs.map(log => {
         return {
@@ -602,16 +626,57 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     alert(`'${moonsName}' address copied to clipboard`);
   };
   
+  const handleNameSubmit = () => {
+    if (newName && newName !== moonsName) {
+      setIsEditingName(false);
+      setName(newName);
+    }
+  };
+
+  const handleDescriptionSubmit = () => {
+    if (newConstitution && newConstitution !== moonsConstitution) {
+      setIsEditingDescription(false);
+      setConstitution(newConstitution);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%', maxWidth: '480px' }}>
       {address === '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>Connect a wallet to interact with this contract</h4>}
       {!isParticipant && address !== '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem'}}>You are not currently a participant of this contract</h4>}
-      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', padding: '1rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', padding: '1rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', marginRight: '1rem' }}>
           <QRCodeSVG value={getAddress(selectedContract)} onClick={() => copyToClipboard(selectedContract)} fgColor='#F6F1D5' bgColor='#000000' />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start' }}>
-          <h2 style={{ fontFamily: 'monospace', fontSize: '1.6rem', margin: '0' }}>{moonsName}</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          {isEditingName ? (
+            <div style={{ display: 'flex', flexDirection: 'column'}}>
+              <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} />
+              <div style={{ display: 'flex', flexDirection: 'row'}}>
+                <button onClick={handleNameSubmit} disabled={!newName || newName === moonsName}>Submit</button>
+                <button onClick={() => setIsEditingName(false)}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <h2 style={{ fontFamily: 'monospace', fontSize: '1.6rem', margin: '0' }}>
+              {isAdmin && <button onClick={() => setIsEditingName(true)} style={{ marginRight: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
+              {moonsName}
+            </h2>
+          )}
+          {isEditingDescription ? (
+            <div style={{ display: 'flex', flexDirection: 'column'}}>
+              <input type="text" value={newConstitution} onChange={(e) => setNewConstitution(e.target.value)} />
+              <div style={{ display: 'flex', flexDirection: 'row'}}>
+                <button onClick={handleDescriptionSubmit} disabled={!newConstitution || newConstitution === moonsConstitution}>Submit</button>
+                <button onClick={() => setIsEditingDescription(false)}>Cancel</button>
+                </div>
+            </div>
+          ) : (
+            <h3 style={{ fontFamily: 'monospace', fontSize: '0.8rem', margin: '0' }}>
+              {isAdmin && <button onClick={() => setIsEditingDescription(true)} style={{ marginRight: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
+              {moonsConstitution}
+            </h3>
+          )}
           <h1 style={{ fontFamily: 'monospace', fontSize: '2rem', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
         </div>
       </div>
