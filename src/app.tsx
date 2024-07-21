@@ -917,7 +917,7 @@ const App = () => {
   return (
   <div style={{ display: 'flex', flexDirection: 'row' }}>
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      <ContractList
+      {(address !== '0x' || contracts.length > 0) && <ContractList
           contracts={contracts}
           loggedIn={address !== '0x'}
           onSelectContract={handleSelectContract}
@@ -925,7 +925,7 @@ const App = () => {
           onDeploy={handleDeploy}
           onRemove={handleRemoveContract}
           onAbout={() => setSelectedContract('0x')}
-        />
+        />}
       {mainContent}
     </div>
   </div>)
