@@ -1,6 +1,6 @@
 import React from 'react';
 
-const SineWave = ({ width, height, markers } : { width: number, height: number, markers: { radians: number, color: string }[] }) => {
+const SineWave = ({ width, height, markers } : { width: number, height: number, markers: { radians: number, color: string, radius: number }[] }) => {
   const padding = 20;
   const points = 100;
   const xScale = (2 * Math.PI) / points;
@@ -12,10 +12,9 @@ const SineWave = ({ width, height, markers } : { width: number, height: number, 
       return [x * (width / (2 * Math.PI)), height - padding - y * yScale];
   }).reduce((acc, [x, y]) => acc + `L${x},${y}`, `M${0},${height - padding}`);
 
-  const markerElements = markers.map(({ radians, color }, index) => {
+  const markerElements = markers.map(({ radians, color, radius }, index) => {
       const x = (radians * width) / (2 * Math.PI);
       const y = Math.sin(radians / 2) ** 2 * yScale;
-      const radius = index === 0 ? 10 : 5; // Make the first marker larger
       return (
           <circle
               key={index}

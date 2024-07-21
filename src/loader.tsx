@@ -11,13 +11,13 @@ import { AddressBubble } from './util';
 
 const WalletClientContext = createContext<{
     publicClient: PublicClient,
-    walletClient: WalletClient,
+    walletClient: WalletClient | undefined,
     address: Address
 } | null>(null);
 
 export function useWalletClientContext(): {
     publicClient: PublicClient,
-    walletClient: WalletClient,
+    walletClient: WalletClient | undefined,
     address: Address
 } {
   return useContext(WalletClientContext)!!;
@@ -84,17 +84,8 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
     </div>
   );
 
-  if (!walletClient || !publicClient || !address) {
-    return (
-      <>
-        {renderTopBar()}
-        <div className="message">Connect to a wallet to continue</div>
-      </>
-    );
-  }
-
   return (
-    <WalletClientContext.Provider value={{ walletClient: walletClient!!, publicClient: publicClient!! as PublicClient, address }}>
+    <WalletClientContext.Provider value={{ walletClient: walletClient, publicClient: publicClient!! as PublicClient, address: address ?? '0x' }}>
       {renderTopBar()}
       {children}
     </WalletClientContext.Provider>

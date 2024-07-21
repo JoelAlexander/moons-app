@@ -170,7 +170,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   const disburseFunds = () => {
     const valueInMicroUSDC = BigInt(Math.round(parseFloat(disbursementValue) * 1e6));
-    walletClient.writeContract({
+    walletClient?.writeContract({
       chain: walletClient.chain,
       account: address,
       abi: MOONS_ABI,
@@ -186,7 +186,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   }
 
   const knock = () => {
-    walletClient.writeContract({
+    walletClient?.writeContract({
       chain: walletClient.chain,
       account: address,
       abi: MOONS_ABI,
@@ -199,7 +199,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   }
 
   const addAdmin = () => {
-    walletClient.writeContract({
+    walletClient?.writeContract({
       chain: walletClient.chain,
       account: address,
       abi: MOONS_ABI,
@@ -214,7 +214,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   }
 
   const addParticipant = () => {
-    walletClient.writeContract({
+    walletClient?.writeContract({
       chain: walletClient.chain,
       account: address,
       abi: MOONS_ABI,
@@ -223,6 +223,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       args: [participantAddress, 'Welcome to our new participant.']
     }).then(_ => {
       fetchParticipants()
+      fetchMaximumAllowedDisbursement()
     })
     setShowAddParticipant(false)
     setParticipantAddress('0x')
@@ -230,7 +231,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   const removeAdmin = (addressToRemove: string) => {
     if (window.confirm(`Are you sure you want to remove admin ${addressToRemove}?`)) {
-      walletClient.writeContract({
+      walletClient?.writeContract({
         chain: walletClient.chain,
         account: address,
         abi: MOONS_ABI,
@@ -243,19 +244,22 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   
   const removeParticipant = (addressToRemove: string) => {
     if (window.confirm(`Are you sure you want to remove participant ${addressToRemove}?`)) {
-      walletClient.writeContract({
+      walletClient?.writeContract({
         chain: walletClient.chain,
         account: address,
         abi: MOONS_ABI,
         address: selectedContract,
         functionName: 'removeParticipant',
         args: [addressToRemove]
-      }).then(_ => fetchParticipants())
+      }).then(_ => {
+        fetchParticipants()
+        fetchMaximumAllowedDisbursement()
+      })
     }
   }  
 
   const addUserEvents = (userEvents: MoonsUserEvent[]) => {
-    setEventFeed(prevFeed => [...userEvents, ...prevFeed])
+    setEventFeed(prevFeed => [...userEvents.toReversed(), ...prevFeed])
   }
 
   const updateBlockNumber = () => {
@@ -505,7 +509,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     fetchMaximumAllowedDisbursement()
     fetchNextAllowedDisburseTime()
     return () => { }
-}, [selectedContract])
+}, [selectedContract, address])
 
   const isParticipant = participants[address] ? true : false
   const cycleTimeNumber = Number(cycleTime)
@@ -535,10 +539,10 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   const yourCycleLocation = getCycleLocation(address)
   const yourCycleRadians = yourCycleLocation[1]
-  const yourMarkers = isParticipant ? [{ radians: yourCycleRadians, color: "#007BFF"}] : []
+  const yourMarkers = isParticipant ? [{ radians: yourCycleRadians, color: "#007BFF", radius: 12}] : []
   const participantMarkers = Object.keys(participants).filter(addr => addr !== address).map(addr => {
     const cycleLocation = getCycleLocation(addr as Address)
-    return { radians: cycleLocation[1], color: getColorFromAddress(addr as Address) }
+    return { radians: cycleLocation[1], color: getColorFromAddress(addr as Address), radius: 6 }
   })
   const markers = [ ...yourMarkers,  ...participantMarkers]
 
@@ -600,12 +604,14 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   
   return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%', maxWidth: '480px' }}>
+      {address === '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>Connect a wallet to interact with this contract</h4>}
+      {!isParticipant && address !== '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem'}}>You are not currently a participant of this contract</h4>}
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', padding: '1rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', marginRight: '1rem' }}>
           <QRCodeSVG value={getAddress(selectedContract)} onClick={() => copyToClipboard(selectedContract)} fgColor='#F6F1D5' bgColor='#000000' />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start' }}>
-          <h2 style={{ fontSize: '1.6rem', margin: '0' }}>{moonsName}</h2>
+          <h2 style={{ fontFamily: 'monospace', fontSize: '1.6rem', margin: '0' }}>{moonsName}</h2>
           <h1 style={{ fontFamily: 'monospace', fontSize: '2rem', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
         </div>
       </div>
@@ -669,8 +675,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
             </div>
           ))}
           { eventFeed.length == 0 && <p style={{ color: '#e8eced' }}>No recent activity to show</p>}
-          {!isParticipant && <h4 style={{ fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>You are not currently a participant of this Moons protocol instance</h4>}
-          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', marginTop: '0.5rem'}}>
+          {address !== '0x' && <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', marginTop: '0.5rem'}}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                 {showKnockInput ? (
                   <div>
@@ -688,7 +693,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
                   <button onClick={() => setShowKnockInput(true)}>Broadcast a message</button>
                 )}
             </div>
-          </div>
+          </div>}
         </div>
         <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
           <h3 style={{ margin: '0' }}>
@@ -766,7 +771,8 @@ const App = () => {
     if (hash.startsWith('#')) {
       const address = hash.substring(1);
       if (isAddress(address)) {
-        handleAddContract(address);
+        handleAddContract(address)
+        setSelectedContract(address)
       }
     }
   }, []);
@@ -817,7 +823,7 @@ const App = () => {
         data: data
       });
       console.log(`Gas estimate: ${gasLimit}`);
-      const hash = await walletClient.deployContract({
+      const hash = await walletClient?.deployContract({
         gas: gasLimit,
         abi: MOONS_ABI,
         bytecode: MOONS_BYTECODE,
@@ -825,16 +831,16 @@ const App = () => {
         account: address,
         chain: base
       });
-      const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      if (receipt.contractAddress) {
+      const receipt = hash && await publicClient.waitForTransactionReceipt({ hash });
+      if (receipt && receipt.contractAddress) {
         handleAddContract(receipt.contractAddress);
       }
     }
   }
 
-  const handleAddContract = (newContract: Address) => {
-    if (!contracts.includes(newContract)) {
-      setContracts([...contracts, newContract])
+  const handleAddContract = (addContract: Address) => {
+    if (!contracts.includes(addContract)) {
+      setContracts([...contracts, addContract])
     }
   }
 
@@ -904,24 +910,21 @@ const ContractList = ({ contracts, onSelectContract, onImport, onDeploy, onRemov
 
   return (
     <div style={{ width: '100%', overflowX: 'auto', display: 'flex', borderBottom: '1px solid #ddd', cursor: 'grab' }}>
-      {contracts.map((contract) => (
+      {contracts.map((contract, i) => (
         <div
           key={contract}
-          style={{ padding: '0.5rem', border: '1px solid #ddd', margin: '0.5rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: '150px' }}
+          style={{ marginLeft: i == 0 ? '1rem' : '0.5rem', marginRight: '0.5rem', marginTop: '0.5rem', marginBottom: '0.5rem', padding: '0.5rem', border: '1px solid #ddd', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: '180px' }}
           onMouseDown={() => startLongPress(contract)}
           onMouseUp={endLongPress}
           onMouseLeave={endLongPress}
           onTouchStart={() => startLongPress(contract)}
           onTouchEnd={endLongPress}
         >
-          <span onClick={() => onSelectContract(contract)}>{contractNames[contract] ? contractNames[contract] : abrev(contract)}</span>
+          <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }} onClick={() => onSelectContract(contract)}>{contractNames[contract] ? contractNames[contract] : abrev(contract)}</h4>
         </div>
       ))}
-      <div style={{ margin: '0.5rem', padding: '0.5rem', border: '1px solid #ddd', cursor: 'pointer', minWidth: '150px' }} onClick={onImport}>
-        Import
-      </div>
-      <div style={{ margin: '0.5rem', padding: '0.5rem', border: '1px solid #ddd', cursor: 'pointer', minWidth: '150px' }} onClick={onDeploy}>
-        Deploy
+      <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer' }} onClick={onDeploy}>
+        <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }}>🚀  Deploy  🌑</h4>
       </div>
     </div>
   )
