@@ -126,7 +126,7 @@ export const AboutMoons = () => {
     {
       content: <div style={{ textAlign: 'left' }}>
       <h2 style={{ color: '#F6F1D5', justifyContent: 'left', margin: '0' }}>Vision</h2>
-      <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Imagine pooling funds for big family meals, where each member’s contribution potential fluctuates fairly and anyone can add to the pot anytime.</p>
+      <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Imagine pooling funds for big family meals, where each contributor can claim thier own fair reimbursment and anyone can add to the pot anytime.</p>
       <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '1rem' }}>Envision robotics teams using Moons protocol for fair, cyclical budgets. Students manage funds strategically, with community donations boosting their potential.</p>
       <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '1rem' }}>Picture a community garden thriving where gardeners have access to fair, fluctuating funds for supplies, while neighbors can donate anytime to support local greenery.</p>
     </div>,
