@@ -524,6 +524,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   }, [blockNumber])
 
   useEffect(() => {
+    setBlockNumber(BigInt(0))
+    setEventFeed([])
     fetchName()
     fetchConstitution()
     fetchStartTime()
@@ -817,12 +819,8 @@ const App = () => {
 
   useEffect(() => {
     const storedContracts = JSON.parse(localStorage.getItem('contracts') || '[]')
-    setContracts(storedContracts)
+    setContracts(Array.from(new Set(storedContracts)))
   }, [])
-
-  useEffect(() => {
-    console.log(`Selected contract: ${selectedContract}`)
-  }, [selectedContract])
 
   useEffect(() => {
     localStorage.setItem('contracts', JSON.stringify(contracts))
@@ -906,7 +904,7 @@ const App = () => {
 
   const handleAddContract = (addContract: Address) => {
     if (!contracts.includes(addContract)) {
-      setContracts(contracts => [...contracts, addContract])
+      setContracts(contracts => Array.from(new Set([...contracts, addContract])))
     }
   }
 
@@ -919,20 +917,21 @@ const App = () => {
   return (
   <div style={{ display: 'flex', flexDirection: 'row' }}>
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      {address !== '0x' && <ContractList
+      <ContractList
           contracts={contracts}
+          loggedIn={address !== '0x'}
           onSelectContract={handleSelectContract}
           onImport={handleImport}
           onDeploy={handleDeploy}
           onRemove={handleRemoveContract}
           onAbout={() => setSelectedContract('0x')}
-        />}
+        />
       {mainContent}
     </div>
   </div>)
 }
 
-const ContractList = ({ contracts, onSelectContract, onDeploy, onRemove, onAbout }: { contracts: Address[], onSelectContract: (address: Address) => void, onImport: () => void, onDeploy: () => void, onRemove: (address: Address) => void, onAbout: () => void }) => {
+const ContractList = ({ contracts, loggedIn, onSelectContract, onDeploy, onRemove, onAbout }: { contracts: Address[], loggedIn: boolean, onSelectContract: (address: Address) => void, onImport: () => void, onDeploy: () => void, onRemove: (address: Address) => void, onAbout: () => void }) => {
   const { publicClient } = useWalletClientContext()
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
   const [ contractNames, setContractNames ] = useState<{[key: Address]: string}>({})
@@ -986,13 +985,14 @@ const ContractList = ({ contracts, onSelectContract, onDeploy, onRemove, onAbout
           onMouseLeave={endLongPress}
           onTouchStart={() => startLongPress(contract)}
           onTouchEnd={endLongPress}
+          onClick={() => onSelectContract(contract)}
         >
-          <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }} onClick={() => onSelectContract(contract)}>{contractNames[contract] ? contractNames[contract] : abrev(contract)}</h4>
+          <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }}>{contractNames[contract] ? contractNames[contract] : abrev(contract)}</h4>
         </div>
       ))}
-      <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer', minWidth: "96px" }} onClick={onDeploy}>
+      {loggedIn && <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer', minWidth: "96px" }} onClick={onDeploy}>
         <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }}>🚀  Deploy  🌑</h4>
-      </div>
+      </div>}
       <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer', minWidth: "96px" }} onClick={onAbout}>
         <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }}>ℹ️  About  ❔</h4>
       </div>
