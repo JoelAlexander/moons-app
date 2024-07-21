@@ -6,7 +6,7 @@ import { ERC20_ABI, USDC_ADDRESS } from './constants'
 import { MOONS_ABI, MOONS_BYTECODE } from './moons'
 import { base } from 'viem/chains'
 import SineWave from './sine'
-import { AddressBubble, getColorFromAddress } from './util'
+import { AddressBubble, AboutMoons, getColorFromAddress } from './util'
 
 function formatUSDC(amount: bigint): string {
   const usdcDecimals = 6n; // USDC has 6 decimal places
@@ -913,7 +913,7 @@ const App = () => {
     setContracts(contracts.filter(contract => contract !== contractToRemove))
   }
 
-  const mainContent = selectedContract !== '0x' ? <Moons selectedContract={selectedContract} /> : null
+  const mainContent = selectedContract !== '0x' ? <Moons selectedContract={selectedContract} /> : <AboutMoons />
 
   return (
   <div style={{ display: 'flex', flexDirection: 'row' }}>
@@ -924,13 +924,14 @@ const App = () => {
           onImport={handleImport}
           onDeploy={handleDeploy}
           onRemove={handleRemoveContract}
+          onAbout={() => setSelectedContract('0x')}
         />}
       {mainContent}
     </div>
   </div>)
 }
 
-const ContractList = ({ contracts, onSelectContract, onImport, onDeploy, onRemove }: { contracts: Address[], onSelectContract: (address: Address) => void, onImport: () => void, onDeploy: () => void, onRemove: (address: Address) => void }) => {
+const ContractList = ({ contracts, onSelectContract, onDeploy, onRemove, onAbout }: { contracts: Address[], onSelectContract: (address: Address) => void, onImport: () => void, onDeploy: () => void, onRemove: (address: Address) => void, onAbout: () => void }) => {
   const { publicClient } = useWalletClientContext()
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
   const [ contractNames, setContractNames ] = useState<{[key: Address]: string}>({})
@@ -990,6 +991,9 @@ const ContractList = ({ contracts, onSelectContract, onImport, onDeploy, onRemov
       ))}
       <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer' }} onClick={onDeploy}>
         <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }}>🚀  Deploy  🌑</h4>
+      </div>
+      <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer' }} onClick={onAbout}>
+        <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }}>ℹ️  About  ❔</h4>
       </div>
     </div>
   )
