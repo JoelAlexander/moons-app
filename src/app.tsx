@@ -853,13 +853,13 @@ const App = () => {
   return (
   <div style={{ display: 'flex', flexDirection: 'row' }}>
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      <ContractList
+      {address !== '0x' && <ContractList
           contracts={contracts}
           onSelectContract={handleSelectContract}
           onImport={handleImport}
           onDeploy={handleDeploy}
           onRemove={handleRemoveContract}
-        />
+        />}
       {mainContent}
     </div>
   </div>)
