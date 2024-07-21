@@ -102,12 +102,13 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [newName, setNewName] = useState(moonsName);
   const [newConstitution, setNewConstitution] = useState(moonsConstitution);
 
-
-  const usdcContract = useMemo(() => getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: USDC_ADDRESS }), [])
-  const moonsContract = useMemo(() => getContract({ abi: MOONS_ABI, client: { public: publicClient }, address: selectedContract }), [])
+  const usdcContract = getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: USDC_ADDRESS })
+  const moonsContract = getContract({ abi: MOONS_ABI, client: { public: publicClient }, address: selectedContract })
 
   const fetchName = () => {
-    moonsContract.read.name().then(name => setMoonsName(name as string))
+    moonsContract.read.name().then(name => {
+      setMoonsName(name as string)
+    })
   }
 
   const fetchConstitution = () => {
@@ -905,7 +906,7 @@ const App = () => {
 
   const handleAddContract = (addContract: Address) => {
     if (!contracts.includes(addContract)) {
-      setContracts([...contracts, addContract])
+      setContracts(contracts => [...contracts, addContract])
     }
   }
 
@@ -953,7 +954,7 @@ const ContractList = ({ contracts, onSelectContract, onDeploy, onRemove, onAbout
       if (window.confirm(`Are you sure you want to remove contract ${contract}?`)) {
         onRemove(contract)
       }
-    }, 800)
+    }, 3000)
   }
 
   const endLongPress = () => {
@@ -989,10 +990,10 @@ const ContractList = ({ contracts, onSelectContract, onDeploy, onRemove, onAbout
           <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }} onClick={() => onSelectContract(contract)}>{contractNames[contract] ? contractNames[contract] : abrev(contract)}</h4>
         </div>
       ))}
-      <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer' }} onClick={onDeploy}>
+      <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer', minWidth: "96px" }} onClick={onDeploy}>
         <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }}>🚀  Deploy  🌑</h4>
       </div>
-      <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer' }} onClick={onAbout}>
+      <div style={{ margin: '0.5rem', padding: '0.5rem', cursor: 'pointer', minWidth: "96px" }} onClick={onAbout}>
         <h4 style={{ fontFamily: 'monospace', margin: '0', fontSize: '0.8rem' }}>ℹ️  About  ❔</h4>
       </div>
     </div>
