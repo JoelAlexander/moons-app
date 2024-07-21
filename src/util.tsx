@@ -109,7 +109,7 @@ export const AboutMoons = () => {
         <h2 style={{ color: '#F6F1D5', justifyContent: 'left', margin: '0' }}>How it Works</h2>
         <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Moons protocol funds are smart contracts that hold and disburse ERC20 tokens such as USDC.</p>
         <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Each fund is deployed with a fixed cycle time that defines how frequenly participants may access funds.</p>
-        <SineWave width={480} height={148} markers={markers} />
+        <SineWave width={400} height={120} markers={markers} />
         <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Participants may disburse funds once per cycle, up to thier current allowance.</p>
         <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>The percentage of the fund allowed to each participant oscillates sinusoidally during the cycle.</p>
         <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>The maximum allowance percentage is determined by the formula 1/sqrt(n) where n is the number of participants.</p>
