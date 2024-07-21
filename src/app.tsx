@@ -18,35 +18,6 @@ function formatUSDC(amount: bigint): string {
   return `${integerPart.toString()}.${fractionalString}`;
 }
 
-const ImportMoons = ({ onAddContract }: { onAddContract: (address: Address) => void }) => {
-  const [input, setInput] = useState('')
-  const [error, setError] = useState('')
-
-  const handleAdd = () => {
-    if (isAddress(input)) {
-      onAddContract(input)
-      setInput('')
-      setError('')
-    } else {
-      setError('Invalid address')
-    }
-  }
-
-  return (
-    <div>
-      <input
-        type="text"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Enter contract address"
-        style={{ marginRight: '0.5rem' }}
-      />
-      <button onClick={handleAdd} style={{ marginRight: '0.5rem' }}>Add</button>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-    </div>
-  )
-}
-
 function zip<T, U>(arr1: T[], arr2: U[]): [T, U][] {
   const length = Math.min(arr1.length, arr2.length);
   const result: [T, U][] = [];
@@ -290,6 +261,14 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const updateBlockNumber = () => {
     publicClient.getBlockNumber().then(setBlockNumber)
   }
+
+  useEffect(() => {
+    if (isAddress(selectedContract)) {
+      window.location.hash = selectedContract;
+    } else {
+      window.location.hash = ''
+    }
+  }, [selectedContract]);
 
   useEffect(() => {
     updateBlockNumber()
@@ -615,7 +594,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   })
 
   const copyToClipboard = (addr: string) => {
-    navigator.clipboard.writeText(addr);
+    navigator.clipboard.writeText(`${addr}`);
     alert(`'${moonsName}' address copied to clipboard`);
   };
   
@@ -679,11 +658,11 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           </h3>
           {eventFeed.map((event, index) => (
             <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1rem', marginTop: '1rem', borderRadius: '20px', background: '#333333', paddingLeft: '1rem', paddingRight: '1rem', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
-              <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
               <h4 style={{ margin: '0', alignContent: 'center' }}>{event.title}</h4>
                 <p style={{ color: '#F6F1D5', margin: '0' }}>{timeAgo(blockNumber, event.blockNumber)}</p>
               </div>
-              <div key={index} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
                 <AddressBubble address={event.actor} textColor={getColorFromAddress(event.actor)} />
                 <p style={{ color: '#F6F1D5', marginLeft: '0.5rem', alignContent: 'center' }}>{event.message}</p>
               </div>
@@ -762,7 +741,6 @@ const App = () => {
   const { publicClient, address, walletClient } = useWalletClientContext()
   const [contracts, setContracts] = useState<Address[]>([])
   const [selectedContract, setSelectedContract] = useState<Address>('0x')
-  const [error, setError] = useState('')
 
   useEffect(() => {})
 
@@ -782,16 +760,30 @@ const App = () => {
     }
   }, [contracts])
 
+  useEffect(() => {
+    const hash = window.location.hash;
+    console.log(hash)
+    if (hash.startsWith('#')) {
+      const address = hash.substring(1);
+      if (isAddress(address)) {
+        handleAddContract(address);
+      }
+    }
+  }, []);
+
   const handleSelectContract = (contract: Address) => {
     setSelectedContract(contract)
   }
 
   const handleImport = () => {
-    const contractAddress = window.prompt("Please enter the address of the Moons contract to import.");
+    const contractAddressUnparsed = window.prompt("Please enter the address of the Moons contract to import.");
+    const hexStart = contractAddressUnparsed?.indexOf('0x') ?? -1
+    const contractAddress = hexStart !== -1 ? contractAddressUnparsed?.substring(hexStart, hexStart + 42) ?? '' : ''
+    console.log(contractAddress)
     if (!contractAddress) {
       return;
     } else if (!isAddress(contractAddress)){
-      alert("Invalid input. Please enter a valid between 2 and 90.");
+      alert("Invalid input.");
       return;
     }
     handleAddContract(contractAddress as Address)
@@ -841,12 +833,9 @@ const App = () => {
   }
 
   const handleAddContract = (newContract: Address) => {
-    if (contracts.includes(newContract)) {
-      setError('Contract address already exists')
-      return
+    if (!contracts.includes(newContract)) {
+      setContracts([...contracts, newContract])
     }
-    setContracts([...contracts, newContract])
-    setError('')
   }
 
   const handleRemoveContract = (contractToRemove: Address) => {
