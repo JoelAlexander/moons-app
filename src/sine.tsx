@@ -1,6 +1,22 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
-const SineWave = ({ width, height, markers } : { width: number, height: number, markers: { radians: number, color: string, radius: number }[] }) => {
+const SineWave = ({ height, markers }: { height: number, markers: { radians: number, color: string, radius: number }[] }) => {
+  const svgRef: React.RefObject<SVGSVGElement> = useRef(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (svgRef.current) {
+        setWidth(svgRef.current.clientWidth);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const padding = 20;
   const points = 100;
   const xScale = (2 * Math.PI) / points;
@@ -27,7 +43,13 @@ const SineWave = ({ width, height, markers } : { width: number, height: number, 
   });
 
   return (
-      <svg width={width} height={height}>
+      <svg
+          ref={svgRef}
+          width="100%"
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="none"
+      >
           <path d={pathData} fill="none" stroke="#F6F1D5" strokeWidth="5" />
           {markerElements}
       </svg>

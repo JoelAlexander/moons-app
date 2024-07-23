@@ -416,6 +416,9 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         if (logs.length > 0) {
           fetchMoonsUsdcBalance()
           fetchMaximumAllowedDisbursement()
+          if (address === log.args.token) {
+            fetchNextAllowedDisburseTime()
+          }
         }
         return {
           title: 'Funds disbursed',
@@ -644,7 +647,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%', maxWidth: '480px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%' }}>
       {address === '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>Connect a wallet to interact with this contract</h4>}
       {!isParticipant && address !== '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem'}}>You are not currently a participant of this contract</h4>}
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', padding: '1rem' }}>
@@ -695,7 +698,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         </div>}
       </div>
       <div style={{display: 'flex', flexDirection: 'row', width: '100%', justifyContent: 'center'}}>
-        <SineWave width={480} height={148} markers={markers} />
+        <SineWave height={148} markers={markers} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
