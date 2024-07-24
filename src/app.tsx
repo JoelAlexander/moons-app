@@ -548,6 +548,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   const nowSeconds = BigInt(Date.now()) / BigInt(1000)
   const mayDisburse = nextAllowedDisburseTime ? nowSeconds > nextAllowedDisburseTime : false
+  const timeTillNextDisburse = nextAllowedDisburseTime - nowSeconds
   const currentCycleSecondsElapsed = cycleTime ? (nowSeconds - startTime) % cycleTime : BigInt(0)
   const currentCycleSecondsRemaining = cycleTime - currentCycleSecondsElapsed
   const currentCycleEnd = nowSeconds  + currentCycleSecondsRemaining
@@ -647,7 +648,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%', maxWidth: '42rem', alignSelf: 'center' }}>
       {address === '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>Connect a wallet to interact with this contract</h4>}
       {!isParticipant && address !== '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem'}}>You are not currently a participant of this contract</h4>}
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', padding: '1rem' }}>
@@ -702,10 +703,13 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       </div>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-          {isParticipant && mayDisburse && <h4 style={{ fontSize: '1rem', margin: '0', marginBottom: '0.25rem', alignSelf: 'center' }}>Current allowance</h4>}
-          <div style={{ display: 'flex', flexDirection: 'row', alignContent: 'center'}}>
+        {isParticipant && mayDisburse && <h4 style={{ fontSize: '1rem', margin: '0', marginBottom: '0.25rem', alignSelf: 'center' }}>Current allowance</h4>}
+        {isParticipant && !mayDisburse && <h4 style={{ fontSize: '1rem', margin: '0', marginBottom: '0.25rem', alignSelf: 'center' }}>You may claim funds again in</h4>}
+        <div style={{ display: 'flex', flexDirection: 'row', alignContent: 'center'}}>
             {isParticipant && mayDisburse && <h4 style={{ fontSize: '2rem', fontWeight: 'bold', fontFamily: 'monospace', margin: '0', marginBottom: '0.25rem', marginRight: '0.5rem', alignSelf: 'center' }}>{formatUSDC(maximumAllowedDisbursement)} USDC</h4>}
             {isParticipant && mayDisburse && <h4 style={{ fontSize: '1rem', fontFamily: 'monospace', margin: '0', marginBottom: '0.25rem', alignSelf: 'center' }}>{`(${(yourCycleMultiplier * 100).toFixed(2)}%)`}</h4>}
+            {isParticipant && !mayDisburse && <h4 style={{ fontSize: '1.4rem', margin: '0', fontWeight: 'bold', fontFamily: 'monospace', alignSelf: 'center' }}>{formatTime(timeTillNextDisburse)}</h4>}
+
           </div>
           {isParticipant && mayDisburse && (
               <div style={{ marginBottom: '1rem', marginTop: '1rem'}}>
@@ -978,11 +982,11 @@ const ContractList = ({ contracts, loggedIn, onSelectContract, onDeploy, onRemov
   }
 
   return (
-    <div style={{ width: '100%', overflowX: 'auto', display: 'flex', borderBottom: '1px solid #ddd', cursor: 'grab' }}>
+    <div style={{ overflowX: 'auto', display: 'flex', flexDirection: 'row', borderBottom: '1px solid #ddd', cursor: 'grab' }}>
       {contracts.map((contract, i) => (
         <div
           key={contract}
-          style={{ marginLeft: i == 0 ? '1rem' : '0.5rem', marginRight: '0.5rem', marginTop: '0.5rem', marginBottom: '0.5rem', padding: '0.5rem', border: '1px solid #ddd', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', minWidth: '180px' }}
+          style={{ marginLeft: i == 0 ? '1rem' : '0.5rem', whiteSpace: 'nowrap', marginRight: '0.5rem', marginTop: '0.5rem', marginBottom: '0.5rem', padding: '0.5rem', border: '1px solid #ddd', cursor: 'pointer' }}
           onMouseDown={() => startLongPress(contract)}
           onMouseUp={endLongPress}
           onMouseLeave={endLongPress}
