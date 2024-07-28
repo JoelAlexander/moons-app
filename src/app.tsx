@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, ChangeEvent, MutableRefObject } from 'react'
 import { useWalletClientContext } from './loader'
 import { QRCodeSVG } from 'qrcode.react'
-import { Address, isAddress, getContract, encodeDeployData, Log, Client, getAddress, decodeEventLog, parseAbiItem } from 'viem'
+import { Address, isAddress, getContract, encodeDeployData, Log, Client, getAddress, decodeEventLog, parseAbiItem, parseEventLogs } from 'viem'
 import { ERC20_ABI, USDC_ADDRESS } from './constants'
 import { MOONS_ABI, MOONS_BYTECODE } from './moons'
 import { base } from 'viem/chains'
+import { Abi } from 'viem'
 import SineWave from './sine'
 import { AddressBubble, AboutMoons, getColorFromAddress } from './util'
 
@@ -39,18 +40,18 @@ function getSortedAddressesByRank(obj: {[key: Address]: BigInt}): Address[] {
   }) as Address[];
 }
 
-function timeAgo(currentBlock: bigint, eventBlock: bigint): string {
+function timeInPast(currentBlock: bigint, eventBlock: bigint): string {
   const blockTimeInSeconds = BigInt(2);
   const secondsAgo = (currentBlock - eventBlock) * blockTimeInSeconds;
 
   if (secondsAgo < 60) {
-      return `${secondsAgo} second${secondsAgo !== BigInt(1) ? 's' : ''} ago`;
+      return `${secondsAgo} second${secondsAgo !== BigInt(1) ? 's' : ''}`;
   } else if (secondsAgo < 3600) {
       const minutesAgo = secondsAgo / BigInt(60);
-      return `${minutesAgo} minute${minutesAgo !== BigInt(1) ? 's' : ''} ago`;
+      return `${minutesAgo} minute${minutesAgo !== BigInt(1) ? 's' : ''}`;
   } else {
       const hoursAgo = secondsAgo / BigInt(3600);
-      return `${hoursAgo} hour${hoursAgo !== BigInt(1) ? 's' : ''} ago`;
+      return `${hoursAgo} hour${hoursAgo !== BigInt(1) ? 's' : ''}`;
   }
 }
 
@@ -66,12 +67,15 @@ function usePrevious<T>(
 }
 
 type MoonsUserEvent = {
+  eventName: string,
   title: string,
   message: string
   actor: Address
   obj?: Address
   blockNumber: bigint
 }
+
+const MAX_BLOCKS = BigInt(1200)
 
 const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const { address, publicClient, walletClient } = useWalletClientContext()
@@ -101,9 +105,20 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [newName, setNewName] = useState(moonsName);
   const [newConstitution, setNewConstitution] = useState(moonsConstitution);
+  const [eventsLoaderState, setEventsLoaderState] = useState<[bigint, bigint]>([BigInt(0), BigInt(0)])
 
   const usdcContract = getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: USDC_ADDRESS })
   const moonsContract = getContract({ abi: MOONS_ABI, client: { public: publicClient }, address: selectedContract })
+
+  const adminAddedAbi = parseAbiItem('event AdminAdded(address indexed admin, address indexed by, uint256 rank, string memo)')
+  const adminRemovedAbi = parseAbiItem('event AdminRemoved(address indexed admin, address indexed by, uint256 rank, string memo)')
+  const participantAddedAbi = parseAbiItem('event ParticipantAdded(address indexed participant, address indexed by, uint256 rank, string memo)')
+  const participantRemovedAbi = parseAbiItem('event ParticipantRemoved(address indexed participant, address indexed by, uint256 rank, string memo)')
+  const fundsDisbursedAbi = parseAbiItem('event FundsDisbursed(address indexed token, address indexed by, uint256 amount, string memo)')
+  const constitutionChangedAbi = parseAbiItem('event ConstitutionChanged(address indexed by, string constitution)')
+  const nameChangedAbi = parseAbiItem('event NameChanged(address indexed by,string name)')
+  const knockAbi = parseAbiItem('event Knock(address indexed addr, string memo)')
+  const transferAbi = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
 
   const fetchName = () => {
     moonsContract.read.name().then(name => {
@@ -279,10 +294,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }
   }
 
-  const addUserEvents = (userEvents: MoonsUserEvent[]) => {
-    setEventFeed(prevFeed => [...userEvents.toReversed(), ...prevFeed])
-  }
-
   const updateBlockNumber = () => {
     publicClient.getBlockNumber().then(setBlockNumber)
   }
@@ -302,188 +313,18 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       clearInterval(interval)
     }
   }, [])
-
-  useEffect(() => {
-    if (blockNumber <= prevBlockNumber) {
-      console.log(`Current block is not greater than previous, not fetching events.`)
-      return
-    }
-
-    const MAX_BLOCKS = BigInt(1000)
-    const fromBlock = blockNumber - prevBlockNumber + BigInt(1) > MAX_BLOCKS ? blockNumber - MAX_BLOCKS + BigInt(1) : prevBlockNumber + BigInt(1)
-    const toBlock = blockNumber
-    console.log(`${fromBlock} -- ${toBlock}`)
-
-    const adminAddedAbi = parseAbiItem('event AdminAdded(address indexed admin, address indexed by, uint256 rank, string memo)')
-    const adminRemovedAbi = parseAbiItem('event AdminRemoved(address indexed admin, address indexed by, uint256 rank, string memo)')
-    const participantAddedAbi = parseAbiItem('event ParticipantAdded(address indexed participant, address indexed by, uint256 rank, string memo)')
-    const participantRemovedAbi = parseAbiItem('event ParticipantRemoved(address indexed participant, address indexed by, uint256 rank, string memo)')
-    const fundsDisbursedAbi = parseAbiItem('event FundsDisbursed(address indexed token, address indexed by, uint256 amount, string memo)')
-    const constitutionChangedAbi = parseAbiItem('event ConstitutionChanged(address indexed by, string constitution)')
-    const nameChangedAbi = parseAbiItem('event NameChanged(address indexed by, string name)')
-    const knockAbi = parseAbiItem('event Knock(address indexed addr, string memo)')
-    const transferAbi = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
-
-    const adminAddedEvents = publicClient.getLogs({
-      address: selectedContract,
-      event: adminAddedAbi,
-      fromBlock,
-      toBlock
-    }).then(logs => {
-      if (logs.length > 0) {
-        fetchAdmins()
-      }
-      return logs.map(log => {
-        return {
-          title: 'Admin added',
-          actor: log.args.by ?? '0x',
-          obj: log.args.admin,
-          message: log.args.memo ?? '',
-          blockNumber: log.blockNumber
-        }
-      })
-    })
-
-    const adminRemovedEvents = publicClient.getLogs({
-      address: selectedContract,
-      event: adminRemovedAbi,
-      fromBlock,
-      toBlock
-    }).then(logs => {
-      if (logs.length > 0) {
-        fetchAdmins()
-      }
-      return logs.map(log => {
-        return {
-          title: 'Admin removed',
-          actor: log.args.by ?? '0x',
-          obj: log.args.admin,
-          message: log.args.memo ?? '',
-          blockNumber: log.blockNumber
-        }
-      })
-    })
-
-    const participantAddedEvents = publicClient.getLogs({
-      address: selectedContract,
-      event: participantAddedAbi,
-      fromBlock,
-      toBlock
-    }).then(logs => {
-      if (logs.length > 0) {
-        fetchParticipants()
-        fetchMaximumAllowedDisbursement()
-      }
-      return logs.map(log => {
-        return {
-          title: 'Participant added',
-          actor: log.args.by ?? '0x',
-          obj: log.args.participant,
-          message: log.args.memo ?? '',
-          blockNumber: log.blockNumber
-        }
-      })
-    })
-
-    const participantRemovedEvents = publicClient.getLogs({
-      address: selectedContract,
-      event: participantRemovedAbi,
-      fromBlock,
-      toBlock
-    }).then(logs => {
-      if (logs.length > 0) {
-        fetchParticipants()
-        fetchMaximumAllowedDisbursement()
-      }
-      return logs.map(log => {
-        return {
-          title: 'Participant removed',
-          actor: log.args.by ?? '0x',
-          obj: log.args.participant,
-          message: log.args.memo ?? '',
-          blockNumber: log.blockNumber
-        }
-      })
-    })
-
-    const fundsDisbursedEvents = publicClient.getLogs({
-      address: selectedContract,
-      event: fundsDisbursedAbi,
-      fromBlock,
-      toBlock
-    }).then(logs => {
-      return logs.map(log => {
-        if (logs.length > 0) {
-          fetchMoonsUsdcBalance()
-          fetchMaximumAllowedDisbursement()
-          if (address === log.args.token) {
-            fetchNextAllowedDisburseTime()
-          }
-        }
-        return {
-          title: 'Funds disbursed',
-          actor: log.args.by ?? '0x',
-          obj: log.args.token,
-          message: log.args.memo ?? '',
-          blockNumber: log.blockNumber
-        }
-      })
-    })
-
-    const constitutionChangedEvents = publicClient.getLogs({
-      address: selectedContract,
-      event: constitutionChangedAbi,
-      fromBlock,
-      toBlock
-    }).then(logs => {
-      if (logs.length > 0) {
-        fetchConstitution()
-      }
-      return logs.map(log => {
-        return {
-          title: 'Constitution changed',
-          actor: log.args.by ?? '0x',
-          message: log.args.constitution ?? '',
-          blockNumber: log.blockNumber
-        }
-      })
-    })
-
-    const nameChangedEvents = publicClient.getLogs({
-      address: selectedContract,
-      event: nameChangedAbi,
-      fromBlock,
-      toBlock
-    }).then(logs => {
-      if (logs.length > 0) {
-        fetchName()
-      }
-      return logs.map(log => {
-        return {
-          title: 'Name changed',
-          actor: log.args.by ?? '0x',
-          message: log.args.name ?? '',
-          blockNumber: log.blockNumber
-        }
-      })
-    })
-
-    const knockEvents = publicClient.getLogs({
-      address: selectedContract,
-      event: knockAbi,
-      fromBlock,
-      toBlock
-    }).then(logs => {
-      return logs.map(log => {
-        return {
-          title: 'Message received',
-          actor: log.args.addr ?? '0x',
-          message: log.args.memo ?? '',
-          blockNumber: log.blockNumber
-        }
-      })
-    })
-
+  
+  const loadEvents = (fromBlock: bigint, toBlock: bigint): Promise<[
+    adminAddedEvents: MoonsUserEvent[],
+    adminRemovedEvents: MoonsUserEvent[],
+    participantAddedEvents: MoonsUserEvent[],
+    participantRemovedEvents: MoonsUserEvent[],
+    fundsDisbursedEvents: MoonsUserEvent[],
+    nameChangedEvents: MoonsUserEvent[],
+    constitutionChangedEvents: MoonsUserEvent[],
+    knockEvents: MoonsUserEvent[],
+    fundsReceivedEvents: MoonsUserEvent[]
+  ]> => {
     const fundsReceivedEvents = publicClient.getLogs({
       address: USDC_ADDRESS,
       event: transferAbi,
@@ -493,42 +334,307 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         to: selectedContract
       }
     }).then(logs => {
-      if (logs.length > 0) {
-        fetchMoonsUsdcBalance()
-        fetchMaximumAllowedDisbursement()
-      }
       return logs.map(log => {
         return {
+          eventName: log.eventName,
           title: 'Funds contributed',
           actor: log.args.from ?? '0x',
           message: `${formatUSDC(log.args.value ?? BigInt(0))} USDC` ?? '',
           blockNumber: log.blockNumber
+        } as MoonsUserEvent
+      })
+    })
+
+    const moonsEvents = publicClient.getLogs({
+      address: selectedContract,
+      fromBlock,
+      toBlock,
+      events: [ adminAddedAbi, adminRemovedAbi, participantAddedAbi, participantRemovedAbi, nameChangedAbi, constitutionChangedAbi, fundsDisbursedAbi, knockAbi ]
+    }).then(events => {
+      return events.map(event => {
+        switch (event.eventName) {
+          case 'AdminAdded':
+            return {
+              eventName: event.eventName,
+              title: 'Admin added',
+              actor: event.args.by ?? '0x',
+              obj: event.args.admin,
+              message: event.args.memo ?? '',
+              blockNumber: event.blockNumber
+            } as MoonsUserEvent
+          case 'AdminRemoved':
+            return {
+              eventName: event.eventName,
+              title: 'Admin removed',
+              actor: event.args.by ?? '0x',
+              obj: event.args.admin ?? '0x',
+              message: event.args.memo ?? '',
+              blockNumber: event.blockNumber
+            } as MoonsUserEvent
+          case 'ParticipantAdded':
+            return {
+              eventName: event.eventName,
+              title: 'Participant added',
+              actor: event.args.by ?? '0x',
+              obj: event.args.participant,
+              message: event.args.memo ?? '',
+              blockNumber: event.blockNumber
+            } as MoonsUserEvent
+          case 'ParticipantRemoved':
+            return {
+              eventName: event.eventName,
+              title: 'Participant removed',
+              actor: event.args.by ?? '0x',
+              obj: event.args.participant,
+              message: event.args.memo ?? '',
+              blockNumber: event.blockNumber
+            } as MoonsUserEvent
+          case 'NameChanged':
+            return {
+              eventName: event.eventName,
+              title: 'Name changed',
+              actor: event.args.by ?? '0x',
+              message: event.args.name ?? '',
+              blockNumber: event.blockNumber
+            } as MoonsUserEvent
+          case 'ConstitutionChanged':
+            return {
+              eventName: event.eventName,
+              title: 'Constitution changed',
+              actor: event.args.by ?? '0x',
+              message: event.args.constitution ?? '',
+              blockNumber: event.blockNumber
+            } as MoonsUserEvent
+          case 'FundsDisbursed':
+            return {
+              eventName: event.eventName,
+              title: 'Funds disbursed',
+              actor: event.args.by ?? '0x',
+              obj: event.args.token,
+              message: event.args.memo ?? '',
+              blockNumber: event.blockNumber
+            } as MoonsUserEvent
+          case 'Knock':
+            return {
+              eventName: event.eventName,
+              title: 'Message received',
+              actor: event.args.addr ?? '0x',
+              message: event.args.memo ?? '',
+              blockNumber: event.blockNumber
+            } as MoonsUserEvent
         }
       })
     })
 
-    const allEventPromises = [adminAddedEvents, adminRemovedEvents,
-      participantAddedEvents, participantRemovedEvents,
-      fundsDisbursedEvents, nameChangedEvents, constitutionChangedEvents,
-      knockEvents, fundsReceivedEvents]
-    Promise.all(allEventPromises).then((
-      [ adminAddedEvents, adminRemovedEvents,
-        participantAddedEvents, participantRemovedEvents,
-        fundsDisbursedEvents, nameChangedEvents, constitutionChangedEvents,
-        knockEvents, fundsReceivedEvents ]) => {
-      const allEvents = [...adminAddedEvents, ...adminRemovedEvents,
-        ...participantAddedEvents, ...participantRemovedEvents,
-        ...fundsDisbursedEvents, ...nameChangedEvents, ...constitutionChangedEvents,
-        ...knockEvents, ...fundsReceivedEvents];
-      allEvents.sort((a, b) => Number(a.blockNumber - b.blockNumber));
-      return allEvents
-    }).then(addUserEvents)
+    const adminAddedEvents = moonsEvents.then(events => {
+      return events.filter(event => event.eventName === 'AdminAdded')
+    })
 
+    const adminRemovedEvents = moonsEvents.then(events => {
+      return events.filter(event => event.eventName === 'AdminRemoved')
+    })
+
+    const participantAddedEvents = moonsEvents.then(events => {
+      return events.filter(event => event.eventName === 'ParticipantAdded')
+    })
+
+    const participantRemovedEvents = moonsEvents.then(events => {
+      return events.filter(event => event.eventName === 'ParticipantRemoved')
+    })
+
+    const fundsDisbursedEvents = moonsEvents.then(events => {
+      return events.filter(event => event.eventName === 'FundsDisbursed')
+    })
+
+    const nameChangedEvents = moonsEvents.then(events => {
+      return events.filter(event => event.eventName === 'NameChanged')
+    })
+
+    const constitutionChangedEvents = moonsEvents.then(events => {
+      return events.filter(event => event.eventName === 'ConstiutionChanged')
+    })
+
+    const knockEvents = moonsEvents.then(events => {
+      return events.filter(event => event.eventName === 'Knock')
+    })
+
+    const allEventPromises = [
+      adminAddedEvents,
+      adminRemovedEvents,
+      participantAddedEvents,
+      participantRemovedEvents,
+      fundsDisbursedEvents,
+      nameChangedEvents,
+      constitutionChangedEvents,
+      knockEvents,
+      fundsReceivedEvents
+    ]
+    return Promise.all(allEventPromises).then((
+      [
+        adminAddedEvents,
+        adminRemovedEvents,
+        participantAddedEvents,
+        participantRemovedEvents,
+        fundsDisbursedEvents,
+        nameChangedEvents,
+        constitutionChangedEvents,
+        knockEvents,
+        fundsReceivedEvents
+      ]: MoonsUserEvent[][]) => {
+      return [
+        adminAddedEvents,
+        adminRemovedEvents,
+        participantAddedEvents,
+        participantRemovedEvents,
+        fundsDisbursedEvents,
+        nameChangedEvents,
+        constitutionChangedEvents,
+        knockEvents,
+        fundsReceivedEvents
+      ]
+    })
+  }
+
+  const estimateBlockNumberForCycleOffset = (cyclesOffset: number): bigint => {
+    const secondsPerBlock = BigInt(2)
+    const cyclesOffsetFixed6 = BigInt(Math.floor(cyclesOffset * 1e6))
+    const blocksOffsetFixed6 = cyclesOffsetFixed6 * cycleTime / secondsPerBlock
+    const blockEstimateFixed6 = (blockNumber * BigInt(1e6)) + blocksOffsetFixed6
+    return blockEstimateFixed6 / BigInt(1e6)
+  }
+
+  useEffect(() => {
+
+    if (!blockNumber || !prevBlockNumber || blockNumber <= prevBlockNumber) {
+      console.log('Waiting for block number range...')
+      return
+    }
+
+    if (blockNumber - prevBlockNumber + BigInt(1) > MAX_BLOCKS) {
+      console.warn('Block number difference greater than max blocks, some events may be missed')
+    }
+
+    if (!eventsLoaderState[0]) {
+      setEventsLoaderState([blockNumber - BigInt((3600 * 24) / 2 / 2 / 2), prevBlockNumber])
+    }
+
+    const fromBlock = blockNumber - prevBlockNumber + BigInt(1) > MAX_BLOCKS ?
+      blockNumber - MAX_BLOCKS + BigInt(1) :
+      prevBlockNumber + BigInt(1)
+    loadEvents(fromBlock, blockNumber).then(([
+      adminAddedEvents,
+      adminRemovedEvents,
+      participantAddedEvents,
+      participantRemovedEvents,
+      fundsDisbursedEvents,
+      nameChangedEvents,
+      constitutionChangedEvents,
+      knockEvents,
+      fundsReceivedEvents
+    ]: MoonsUserEvent[][]) => {
+
+      if (adminAddedEvents.length > 0 || adminRemovedEvents.length > 0) {
+        fetchAdmins()
+      }
+
+      if (participantAddedEvents.length > 0 || participantRemovedEvents.length > 0) {
+        fetchParticipants()
+        fetchMaximumAllowedDisbursement()
+        fetchNextAllowedDisburseTime()
+      }
+
+      if (fundsDisbursedEvents.length > 0) {
+        fetchMaximumAllowedDisbursement()
+        fetchNextAllowedDisburseTime()
+      }
+
+      if (constitutionChangedEvents.length > 0) {
+        fetchConstitution()
+      }
+
+      if (nameChangedEvents.length > 0) {
+        fetchName()
+      }
+
+      if (fundsReceivedEvents.length > 0) {
+        fetchMoonsUsdcBalance()
+        fetchMaximumAllowedDisbursement()
+      }
+
+      const allEventsSorted = [
+        ...adminAddedEvents,
+        ...adminRemovedEvents,
+         ...participantAddedEvents,
+         ...participantRemovedEvents,
+         ...fundsDisbursedEvents,
+         ...nameChangedEvents,
+         ...constitutionChangedEvents,
+         ...knockEvents,
+         ...fundsReceivedEvents
+      ]
+         .sort((a, b) => Number(a.blockNumber - b.blockNumber))
+         .toReversed();
+
+      setEventFeed(prev => [...allEventsSorted, ...prev])
+    })
   }, [blockNumber])
+
+  const MAX_CONCURRENT_REQUESTS = 2;
+
+  const processInBatches = async (tasks: (() => Promise<MoonsUserEvent[][]>)[], batchSize: number): Promise<MoonsUserEvent[][]> => {
+    const results: MoonsUserEvent[][] = [];
+    for (let i = 0; i < tasks.length; i += batchSize) {
+      const batch = tasks.slice(i, i + batchSize);
+      const batchResults = await Promise.all(batch.map(task => task()));
+      const resultsConcat = batchResults.reduce((acc, current) => acc.concat(current), []);
+      results.push(...resultsConcat);
+    }
+    return results;
+  };
+  
+  useEffect(() => {
+    const requestedEventsBlockNumber = eventsLoaderState[0];
+    const loadedEventsBlockNumber = eventsLoaderState[1];
+    if (loadedEventsBlockNumber <= requestedEventsBlockNumber) {
+      console.log('Loaded all requested events');
+      return;
+    }
+  
+    const blocksToLoad = loadedEventsBlockNumber - requestedEventsBlockNumber;
+    console.log(`Loading ${blocksToLoad.toString()} blocks back to ${requestedEventsBlockNumber.toString()}`);
+    const extraChunks = blocksToLoad % MAX_BLOCKS === BigInt(0) ? BigInt(0) : BigInt(1)
+    const chunks = Number((blocksToLoad / MAX_BLOCKS) + extraChunks);
+    const loadTasks = [];
+
+    console.log(`Fetching ${chunks.toString()} chunks including ${extraChunks.toString()} odd sized one(s)`)
+  
+    for (let i = 0; i < chunks; i++) {
+      const fromBlock = loadedEventsBlockNumber - (BigInt(i + 1) * MAX_BLOCKS);
+      const toBlock = loadedEventsBlockNumber - (BigInt(i) * MAX_BLOCKS) - BigInt(1);
+      loadTasks.push(() => {
+        const fromBlockToUse = fromBlock < requestedEventsBlockNumber ? requestedEventsBlockNumber : fromBlock
+        console.log(`Fetching ${(toBlock - fromBlockToUse + BigInt(1)).toString()} range ${fromBlockToUse.toString()}:${toBlock.toString()}`)
+        return loadEvents(fromBlockToUse, toBlock)
+      });
+    }
+  
+    processInBatches(loadTasks, MAX_CONCURRENT_REQUESTS).then((results) => {
+      const allEvents = results.flat();
+      const historicalEventsSorted = allEvents
+        .sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber))
+        .reverse();
+  
+      setEventFeed(prev => [...prev, ...historicalEventsSorted]);
+      setEventsLoaderState([eventsLoaderState[0], requestedEventsBlockNumber]);
+    });
+  
+  }, [eventsLoaderState]);  
+   
 
   useEffect(() => {
     setBlockNumber(BigInt(0))
     setEventFeed([])
+    setEventsLoaderState([BigInt(0), BigInt(0)])
     fetchName()
     fetchConstitution()
     fetchStartTime()
@@ -647,6 +753,13 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }
   };
 
+  const loadedEventsBlock = eventsLoaderState[1]
+  const recentActivityString = loadedEventsBlock ? `Recent activity (past ${timeInPast(blockNumber, loadedEventsBlock)})` : 'Recent activity'
+
+  const handleLoadMoreEvents = () => {
+    setEventsLoaderState([eventsLoaderState[0] - BigInt((3600 * 24) / 2 / 2 / 2), eventsLoaderState[1]])
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%', maxWidth: '42rem', alignSelf: 'center' }}>
       {address === '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>Connect a wallet to interact with this contract</h4>}
@@ -734,14 +847,18 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         </div>
       </div>
         <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
-          <h3 style={{ margin: '0' }}>
-            Recent activity
-          </h3>
+          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
+            <h3 style={{ margin: '0' }}>
+              {recentActivityString}
+            </h3>
+            { eventsLoaderState[0] === eventsLoaderState[1] && <button onClick={handleLoadMoreEvents}>↻</button> }
+          </div>
+
           {eventFeed.map((event, index) => (
             <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1rem', marginTop: '1rem', borderRadius: '20px', background: '#333333', paddingLeft: '1rem', paddingRight: '1rem', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
               <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
               <h4 style={{ margin: '0', alignContent: 'center' }}>{event.title}</h4>
-                <p style={{ color: '#F6F1D5', margin: '0' }}>{timeAgo(blockNumber, event.blockNumber)}</p>
+                <p style={{ color: '#F6F1D5', margin: '0' }}>{timeInPast(blockNumber, event.blockNumber)} ago</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
                 <AddressBubble address={event.actor} textColor={getColorFromAddress(event.actor)} />
@@ -893,7 +1010,6 @@ const App = () => {
         account: address,
         data: data
       });
-      console.log(`Gas estimate: ${gasLimit}`);
       const hash = await walletClient?.deployContract({
         gas: gasLimit,
         abi: MOONS_ABI,

@@ -36,7 +36,6 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
   const verifySwitchedToChain = () => {
     walletClient?.getChainId()
     .then((chainId) => {
-      console.log(`ChainID: ${chainId}`);
       if (chainId !== base.id) {
         console.log(`Switching to ${base.id}`)
         switchChain({ chainId: base.id })
