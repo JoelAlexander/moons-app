@@ -75,7 +75,7 @@ type MoonsUserEvent = {
   blockNumber: bigint
 }
 
-const MAX_BLOCKS = BigInt(1200)
+const MAX_BLOCKS = BigInt(1000)
 
 const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const { address, publicClient, walletClient } = useWalletClientContext()
