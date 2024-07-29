@@ -495,14 +495,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     })
   }
 
-  const estimateBlockNumberForCycleOffset = (cyclesOffset: number): bigint => {
-    const secondsPerBlock = BigInt(2)
-    const cyclesOffsetFixed6 = BigInt(Math.floor(cyclesOffset * 1e6))
-    const blocksOffsetFixed6 = cyclesOffsetFixed6 * cycleTime / secondsPerBlock
-    const blockEstimateFixed6 = (blockNumber * BigInt(1e6)) + blocksOffsetFixed6
-    return blockEstimateFixed6 / BigInt(1e6)
-  }
-
   useEffect(() => {
 
     if (!blockNumber || !prevBlockNumber || blockNumber <= prevBlockNumber) {
@@ -515,7 +507,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }
 
     if (!eventsLoaderState[0]) {
-      setEventsLoaderState([blockNumber - BigInt((3600 * 24) / 2 / 2 / 2), prevBlockNumber])
+      setEventsLoaderState([blockNumber, blockNumber])
     }
 
     const fromBlock = blockNumber - prevBlockNumber + BigInt(1) > MAX_BLOCKS ?
@@ -625,7 +617,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         .reverse();
   
       setEventFeed(prev => [...prev, ...historicalEventsSorted]);
-      setEventsLoaderState([eventsLoaderState[0], requestedEventsBlockNumber]);
+      setEventsLoaderState((prevEventsLoaderState) => [prevEventsLoaderState[0], requestedEventsBlockNumber]);
     });
   
   }, [eventsLoaderState]);  
@@ -754,10 +746,16 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   };
 
   const loadedEventsBlock = eventsLoaderState[1]
-  const recentActivityString = loadedEventsBlock ? `Recent activity (past ${timeInPast(blockNumber, loadedEventsBlock)})` : 'Recent activity'
+  const recentActivityString = loadedEventsBlock ? `Showing past ${timeInPast(blockNumber, loadedEventsBlock)} of activity` : ''
+  const eventsLoading = eventsLoaderState[0] !== BigInt(0) && eventsLoaderState[0] !== eventsLoaderState[1]
+  const canLoadEvents = eventsLoaderState[1] != BigInt(0)
+
+  console.log(`${eventsLoaderState[0].toString()}, ${eventsLoaderState[1].toString()}`)
 
   const handleLoadMoreEvents = () => {
-    setEventsLoaderState([eventsLoaderState[0] - BigInt((3600 * 24) / 2 / 2 / 2), eventsLoaderState[1]])
+    if (canLoadEvents) {
+      setEventsLoaderState([eventsLoaderState[0] - BigInt((3600 * 24) / 2 / 2 / 2), eventsLoaderState[1]])
+    }
   }
 
   return (
@@ -849,9 +847,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
           <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
             <h3 style={{ margin: '0' }}>
-              {recentActivityString}
+              Recent activity
             </h3>
-            { eventsLoaderState[0] === eventsLoaderState[1] && <button onClick={handleLoadMoreEvents}>↻</button> }
           </div>
 
           {eventFeed.map((event, index) => (
@@ -866,7 +863,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               </div>
             </div>
           ))}
-          { eventFeed.length == 0 && <p style={{ color: '#e8eced' }}>No recent activity to show</p>}
+          { eventFeed.length == 0 && <p style={{ color: '#e8eced' }}>No activity to show</p>}
+          { address !== '0x' && eventsLoading && <p style={{ color: '#e8eced' }}>Loading activity...</p>}
           {address !== '0x' && <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', marginTop: '0.5rem'}}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
                 {showKnockInput ? (
@@ -886,6 +884,12 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
                 )}
             </div>
           </div>}
+          { address !== '0x' &&
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+              <p style={{ color: '#e8eced', textAlign: 'center' }}>{recentActivityString}</p>
+              {!eventsLoading && canLoadEvents && <button style={{ alignSelf: 'center' }} onClick={handleLoadMoreEvents}>Load more ↻</button>}
+            </div>
+          }
         </div>
         <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
           <h3 style={{ margin: '0' }}>
