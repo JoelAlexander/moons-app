@@ -116,7 +116,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const participantRemovedAbi = parseAbiItem('event ParticipantRemoved(address indexed participant, address indexed by, uint256 rank, string memo)')
   const fundsDisbursedAbi = parseAbiItem('event FundsDisbursed(address indexed token, address indexed by, uint256 amount, string memo)')
   const constitutionChangedAbi = parseAbiItem('event ConstitutionChanged(address indexed by, string constitution)')
-  const nameChangedAbi = parseAbiItem('event NameChanged(address indexed by,string name)')
+  const nameChangedAbi = parseAbiItem('event NameChanged(address indexed by, string name)')
   const knockAbi = parseAbiItem('event Knock(address indexed addr, string memo)')
   const transferAbi = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)')
 
@@ -348,10 +348,19 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     const moonsEvents = publicClient.getLogs({
       address: selectedContract,
       fromBlock,
-      toBlock,
-      events: [ adminAddedAbi, adminRemovedAbi, participantAddedAbi, participantRemovedAbi, nameChangedAbi, constitutionChangedAbi, fundsDisbursedAbi, knockAbi ]
+      toBlock
     }).then(events => {
-      return events.map(event => {
+      const parsedEvents = parseEventLogs({
+        abi: [ adminAddedAbi, adminRemovedAbi, participantAddedAbi, participantRemovedAbi, nameChangedAbi, constitutionChangedAbi, fundsDisbursedAbi, knockAbi ],
+        logs: events,
+        eventName: [ "AdminAdded", "AdminRemoved", "ParticipantAdded", "ParticipantRemoved", "NameChanged", "ConstitutionChanged", "FundsDisbursed", "Knock"]
+      })
+      return parsedEvents.map(parsedEvent => {
+        const event = decodeEventLog({
+          abi: [ adminAddedAbi, adminRemovedAbi, participantAddedAbi, participantRemovedAbi, nameChangedAbi, constitutionChangedAbi, fundsDisbursedAbi, knockAbi ],
+          data: parsedEvent.data,
+          topics: [parsedEvent.topics[0], parsedEvent.topics[1]]
+        })
         switch (event.eventName) {
           case 'AdminAdded':
             return {
@@ -360,7 +369,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               actor: event.args.by ?? '0x',
               obj: event.args.admin,
               message: event.args.memo ?? '',
-              blockNumber: event.blockNumber
+              blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'AdminRemoved':
             return {
@@ -369,7 +378,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               actor: event.args.by ?? '0x',
               obj: event.args.admin ?? '0x',
               message: event.args.memo ?? '',
-              blockNumber: event.blockNumber
+              blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'ParticipantAdded':
             return {
@@ -378,7 +387,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               actor: event.args.by ?? '0x',
               obj: event.args.participant,
               message: event.args.memo ?? '',
-              blockNumber: event.blockNumber
+              blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'ParticipantRemoved':
             return {
@@ -387,7 +396,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               actor: event.args.by ?? '0x',
               obj: event.args.participant,
               message: event.args.memo ?? '',
-              blockNumber: event.blockNumber
+              blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'NameChanged':
             return {
@@ -395,7 +404,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               title: 'Name changed',
               actor: event.args.by ?? '0x',
               message: event.args.name ?? '',
-              blockNumber: event.blockNumber
+              blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'ConstitutionChanged':
             return {
@@ -403,7 +412,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               title: 'Constitution changed',
               actor: event.args.by ?? '0x',
               message: event.args.constitution ?? '',
-              blockNumber: event.blockNumber
+              blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'FundsDisbursed':
             return {
@@ -412,7 +421,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               actor: event.args.by ?? '0x',
               obj: event.args.token,
               message: event.args.memo ?? '',
-              blockNumber: event.blockNumber
+              blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'Knock':
             return {
@@ -420,7 +429,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               title: 'Message received',
               actor: event.args.addr ?? '0x',
               message: event.args.memo ?? '',
-              blockNumber: event.blockNumber
+              blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
         }
       })
@@ -451,7 +460,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     })
 
     const constitutionChangedEvents = moonsEvents.then(events => {
-      return events.filter(event => event.eventName === 'ConstiutionChanged')
+      return events.filter(event => event.eventName === 'ConstitutionChanged')
     })
 
     const knockEvents = moonsEvents.then(events => {
@@ -593,19 +602,15 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     }
   
     const blocksToLoad = loadedEventsBlockNumber - requestedEventsBlockNumber;
-    console.log(`Loading ${blocksToLoad.toString()} blocks back to ${requestedEventsBlockNumber.toString()}`);
     const extraChunks = blocksToLoad % MAX_BLOCKS === BigInt(0) ? BigInt(0) : BigInt(1)
     const chunks = Number((blocksToLoad / MAX_BLOCKS) + extraChunks);
     const loadTasks = [];
 
-    console.log(`Fetching ${chunks.toString()} chunks including ${extraChunks.toString()} odd sized one(s)`)
-  
     for (let i = 0; i < chunks; i++) {
       const fromBlock = loadedEventsBlockNumber - (BigInt(i + 1) * MAX_BLOCKS);
       const toBlock = loadedEventsBlockNumber - (BigInt(i) * MAX_BLOCKS) - BigInt(1);
       loadTasks.push(() => {
         const fromBlockToUse = fromBlock < requestedEventsBlockNumber ? requestedEventsBlockNumber : fromBlock
-        console.log(`Fetching ${(toBlock - fromBlockToUse + BigInt(1)).toString()} range ${fromBlockToUse.toString()}:${toBlock.toString()}`)
         return loadEvents(fromBlockToUse, toBlock)
       });
     }
@@ -749,8 +754,6 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const recentActivityString = loadedEventsBlock ? `Showing past ${timeInPast(blockNumber, loadedEventsBlock)} of activity` : ''
   const eventsLoading = eventsLoaderState[0] !== BigInt(0) && eventsLoaderState[0] !== eventsLoaderState[1]
   const canLoadEvents = eventsLoaderState[1] != BigInt(0)
-
-  console.log(`${eventsLoaderState[0].toString()}, ${eventsLoaderState[1].toString()}`)
 
   const handleLoadMoreEvents = () => {
     if (canLoadEvents) {
@@ -959,7 +962,6 @@ const App = () => {
 
   useEffect(() => {
     const hash = window.location.hash;
-    console.log(hash)
     if (hash.startsWith('#')) {
       const address = hash.substring(1);
       if (isAddress(address)) {
@@ -977,7 +979,6 @@ const App = () => {
     const contractAddressUnparsed = window.prompt("Please enter the address of the Moons contract to import.");
     const hexStart = contractAddressUnparsed?.indexOf('0x') ?? -1
     const contractAddress = hexStart !== -1 ? contractAddressUnparsed?.substring(hexStart, hexStart + 42) ?? '' : ''
-    console.log(contractAddress)
     if (!contractAddress) {
       return;
     } else if (!isAddress(contractAddress)){
