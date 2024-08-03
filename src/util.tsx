@@ -24,32 +24,51 @@ export const getColorFromAddress = (address: Address): string => {
   return colors[colorIndex];
 }
 
-export const AddressBubble = ({ address, textColor, onLongPress}: { address: string, textColor: string, onLongPress?: () => void}) => {
-  const abbreviateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+export const AddressBubble = ({
+  address,
+  textColor,
+  onLongPress,
+}: {
+  address: string;
+  textColor: string;
+  onLongPress?: () => void;
+}) => {
+  const abbreviateAddress = (addr: string) =>
+    `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   let timer: NodeJS.Timeout;
+  const [isLongPress, setIsLongPress] = useState(false);
 
   const handleMouseDown = () => {
-    if (onLongPress) {
-      timer = setTimeout(onLongPress, 1000);
-    }
+    timer = setTimeout(() => {
+      setIsLongPress(true);
+      if (onLongPress) onLongPress();
+    }, 1000);
   };
 
   const handleMouseUp = () => {
     clearTimeout(timer);
+    if (!isLongPress) {
+      copyToClipboard(address);
+    }
+    setIsLongPress(false);
+  };
+
+  const handleMouseLeave = () => {
+    clearTimeout(timer);
+    setIsLongPress(false);
   };
 
   const copyToClipboard = (addr: string) => {
     navigator.clipboard.writeText(addr);
-    alert('Address copied to clipboard');
+    alert(`${addr} copied to clipboard`);
   };
 
   return (
     <p
-      style={{...styles.bubble, color: textColor }}
-      onClick={() => copyToClipboard(address)}
+      style={{ ...styles.bubble, color: textColor }}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
     >
       {abbreviateAddress(address)}
     </p>
@@ -58,6 +77,8 @@ export const AddressBubble = ({ address, textColor, onLongPress}: { address: str
 
 const styles = {
   bubble: {
+    fontFamily: 'monospace',
+    fontSize: '1rem',
     display: 'inline-block',
     padding: '5px 10px',
     border: '2px solid #999999',

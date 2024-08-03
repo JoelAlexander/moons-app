@@ -11,9 +11,9 @@ import { AddressBubble, AboutMoons, getColorFromAddress } from './util'
 
 function formatUSDC(amount: bigint): string {
   const usdcDecimals = 6n; // USDC has 6 decimal places
-  const factor = 10n ** usdcDecimals;
-  const integerPart = amount / factor;
-  const fractionalPart = amount % factor;
+  const fprimary = 10n ** usdcDecimals;
+  const integerPart = amount / fprimary;
+  const fractionalPart = amount % fprimary;
 
   const fractionalString = fractionalPart.toString().padStart(Number(usdcDecimals), '0').slice(0, 2);
   return `${integerPart.toString()}.${fractionalString}`;
@@ -70,8 +70,8 @@ type MoonsUserEvent = {
   eventName: string,
   title: string,
   message: string
-  actor: Address
-  obj?: Address
+  primary?: Address
+  secondary?: Address
   blockNumber: bigint
 }
 
@@ -250,7 +250,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         abi: MOONS_ABI,
         address: selectedContract,
         functionName: 'removeAdmin',
-        args: [addressToRemove]
+        args: [addressToRemove, ""] // TODO: Plumb a memo
       })
     }
   }
@@ -263,7 +263,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         abi: MOONS_ABI,
         address: selectedContract,
         functionName: 'removeParticipant',
-        args: [addressToRemove]
+        args: [addressToRemove, ""] // TODO: Plumb a memo
       })
     }
   }
@@ -338,7 +338,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         return {
           eventName: log.eventName,
           title: 'Funds contributed',
-          actor: log.args.from ?? '0x',
+          primary: log.args.from ?? '0x',
           message: `${formatUSDC(log.args.value ?? BigInt(0))} USDC` ?? '',
           blockNumber: log.blockNumber
         } as MoonsUserEvent
@@ -359,76 +359,76 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         const event = decodeEventLog({
           abi: [ adminAddedAbi, adminRemovedAbi, participantAddedAbi, participantRemovedAbi, nameChangedAbi, constitutionChangedAbi, fundsDisbursedAbi, knockAbi ],
           data: parsedEvent.data,
-          topics: [parsedEvent.topics[0], parsedEvent.topics[1]]
+          topics: [parsedEvent.topics[0], ...parsedEvent.topics.slice(1)]
         })
         switch (event.eventName) {
           case 'AdminAdded':
             return {
               eventName: event.eventName,
-              title: 'Admin added',
-              actor: event.args.by ?? '0x',
-              obj: event.args.admin,
-              message: event.args.memo ?? '',
+              title: 'Administrator Added',
+              primary: event.args.admin,
+              secondary: event.args.by,
+              message: event.args.memo,
               blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'AdminRemoved':
             return {
               eventName: event.eventName,
-              title: 'Admin removed',
-              actor: event.args.by ?? '0x',
-              obj: event.args.admin ?? '0x',
-              message: event.args.memo ?? '',
+              title: 'Administrator Removed',
+              primary: event.args.admin,
+              secondary: event.args.by,
+              message: event.args.memo,
               blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'ParticipantAdded':
             return {
               eventName: event.eventName,
-              title: 'Participant added',
-              actor: event.args.by ?? '0x',
-              obj: event.args.participant,
-              message: event.args.memo ?? '',
+              title: 'Participant Added',
+              primary: event.args.participant,
+              secondary: event.args.by,
+              message: event.args.memo,
               blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'ParticipantRemoved':
             return {
               eventName: event.eventName,
-              title: 'Participant removed',
-              actor: event.args.by ?? '0x',
-              obj: event.args.participant,
-              message: event.args.memo ?? '',
+              title: 'Participant Removed',
+              primary: event.args.participant,
+              secondary: event.args.by,
+              message: event.args.memo,
               blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'NameChanged':
             return {
               eventName: event.eventName,
-              title: 'Name changed',
-              actor: event.args.by ?? '0x',
-              message: event.args.name ?? '',
+              title: 'Name Changed',
+              primary: event.args.by,
+              message: event.args.name,
               blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'ConstitutionChanged':
             return {
               eventName: event.eventName,
-              title: 'Constitution changed',
-              actor: event.args.by ?? '0x',
-              message: event.args.constitution ?? '',
+              title: 'Constitution Changed',
+              secondary: event.args.by,
+              message: event.args.constitution,
               blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'FundsDisbursed':
             return {
               eventName: event.eventName,
-              title: 'Funds disbursed',
-              actor: event.args.by ?? '0x',
-              obj: event.args.token,
-              message: event.args.memo ?? '',
+              title: 'Funds Disbursed',
+              primary: event.args.by,
+              secondary: event.args.token,
+              message: event.args.memo,
               blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
           case 'Knock':
             return {
               eventName: event.eventName,
-              title: 'Message received',
-              actor: event.args.addr ?? '0x',
-              message: event.args.memo ?? '',
+              title: 'Message Received',
+              primary: event.args.addr,
+              message: event.args.memo,
               blockNumber: parsedEvent.blockNumber
             } as MoonsUserEvent
         }
@@ -697,17 +697,49 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   
     return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
   };
+
+  const getPhaseEmoji = (cycleRadians: number) => {
+    const cyclePercentage = (cycleRadians / (2 * Math.PI)) * 100;
   
-  const phaseLabel = yourCycleMaxTime > nowSeconds ? 'Waxing' : 'Waning';
+    if (cyclePercentage < 2.5 || cyclePercentage >= 97.5) return "🌑";
+    if (cyclePercentage < 12.5) return "🌒";
+    if (cyclePercentage < 27.5) return "🌓";
+    if (cyclePercentage < 47.5) return "🌔";
+    if (cyclePercentage < 49.5) return "🌕";
+    if (cyclePercentage < 50.5) return "🌝";
+    if (cyclePercentage < 52.5) return "🌕";
+    if (cyclePercentage < 72.5) return "🌖";
+    if (cyclePercentage < 87.5) return "🌗";
+    if (cyclePercentage < 97.5) return "🌘";
+  
+    return "🌑"; // Fallback to a new moon emoji
+  };
+  
+  const getPhaseLabel = (cycleRadians: number, currentTime: bigint, maxTime: bigint) => {
+    const emoji = getPhaseEmoji(cycleRadians);
+    const phaseLabel =
+      cycleRadians < Math.PI * 0.05 || cycleRadians > Math.PI * 1.95
+        ? "New"
+        : cycleRadians > Math.PI * 0.95 && cycleRadians < Math.PI * 1.05
+        ? "Full"
+        : maxTime > currentTime
+        ? "Waxing"
+        : "Waning";
+  
+    return `${emoji} ${phaseLabel}`;
+  };
+  
+  const phaseLabel = getPhaseLabel(
+    yourCycleRadians,
+    nowSeconds,
+    yourCycleMaxTime
+  );
   const timeFromMaxSeconds = yourCycleMaxTime > nowSeconds ? currentCycleMaxIn : currentCycleMaxAgo;
   const timeAboutMaxString = yourCycleMaxTime > nowSeconds
     ? `${formatTime(timeFromMaxSeconds)} until max`
     : `${formatTime(timeFromMaxSeconds)} since max`;
   
   const timeFromMinSeconds = yourCycleMaxTime > nowSeconds ? nowSeconds - currentCycleStart + yourCycleLocation[0] : currentCycleEnd + yourCycleLocation[0] - nowSeconds;
-  const timeAboutMinString = yourCycleMaxTime > nowSeconds
-    ? `${formatTime(timeFromMinSeconds)} since min`
-    : `${formatTime(timeFromMinSeconds)} until min`;  
 
   const participantList = getSortedAddressesByRank(participants).map(addr => {
     return (
@@ -803,13 +835,12 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       </div>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', padding: '1rem'}}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {isParticipant && <h4 style={{ fontSize: '1.2rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{phaseLabel}</h4>}
-          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
-          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{`Max = ${(allowanceMaxRatio*100).toFixed(2)}%`}</h4>
+          {isParticipant && <h4 style={{ fontSize: '1.3rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{phaseLabel}</h4>}
+          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{timeAboutMaxString}</h4>
         </div>
         {isParticipant && <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{timeAboutMaxString}</h4>
-          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{timeAboutMinString}</h4>
+          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
+          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{`Max = ${(allowanceMaxRatio*100).toFixed(2)}%`}</h4>
         </div>}
       </div>
       <div style={{display: 'flex', flexDirection: 'row', width: '100%', justifyContent: 'center'}}>
@@ -849,21 +880,28 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       </div>
         <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
           <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between'}}>
-            <h3 style={{ margin: '0' }}>
-              Recent activity
+            <h3 style={{ margin: '0', fontSize: '1.3rem', fontWeight: 'lighter', letterSpacing: '0.0618rem' }}>
+              Recent Activity
             </h3>
           </div>
 
           {eventFeed.map((event, index) => (
             <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1rem', marginTop: '1rem', borderRadius: '20px', background: '#333333', paddingLeft: '1rem', paddingRight: '1rem', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
               <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-              <h4 style={{ margin: '0', alignContent: 'center' }}>{event.title}</h4>
-                <p style={{ color: '#F6F1D5', margin: '0' }}>{timeInPast(blockNumber, event.blockNumber)} ago</p>
+                <p style={{ color: '#FAFAFA', margin: '0', alignContent: 'center', fontFamily: 'Arial, sans-serif', fontSize: '1rem', fontWeight: 'bold' }}>{event.title}</p>
+                <p style={{ fontFamily: 'monospace', color: '#FAFAFA', margin: '0', fontSize: '0.8rem' }}>{timeInPast(blockNumber, event.blockNumber)} ago</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
-                <AddressBubble address={event.actor} textColor={getColorFromAddress(event.actor)} />
-                <p style={{ color: '#F6F1D5', marginLeft: '0.5rem', alignContent: 'center' }}>{event.message}</p>
+                {event.primary && <AddressBubble address={event.primary} textColor={getColorFromAddress(event.primary)} />}
               </div>
+              {event.secondary && <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+                <p style={{ color: '#FAFAFA', marginRight: '0.5rem', alignContent: 'center', fontWeight: 'bold', fontFamily: 'Arial, sans-serif' }}>By</p>
+                <AddressBubble address={event.secondary} textColor={getColorFromAddress(event.secondary)} />
+              </div>}
+              {event.message && <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+                <p style={{ color: '#FAFAFA', marginRight: '0.5rem', alignContent: 'center', fontWeight: 'bold', fontFamily: 'Arial, sans-serif' }}>Message</p>
+                <p style={{ color: '#F6F1D5', marginLeft: '0.5rem', alignContent: 'center', fontFamily: 'Arial, sans-serif' }}>{event.message}</p>
+              </div>}
             </div>
           ))}
           { eventFeed.length == 0 && <p style={{ color: '#e8eced' }}>No activity to show</p>}
@@ -895,7 +933,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           }
         </div>
         <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
-          <h3 style={{ margin: '0' }}>
+          <h3 style={{ margin: '0', fontSize: '1.3rem', fontWeight: 'lighter', letterSpacing: '0.0618rem' }}>
             Participants
             {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)} style={{ marginLeft: '0.5rem' }}>+</button>}
           </h3>
@@ -916,7 +954,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
             {participantList}
           </div>
           
-          <h3 style={{ margin: '0' }}>
+          <h3 style={{ margin: '0', fontSize: '1.3rem', fontWeight: 'lighter', letterSpacing: '0.0618rem' }}>
             Administrators
             {isAdmin && !showAddAdmin && <button onClick={() => setShowAddAdmin(true)} style={{ marginLeft: '0.5rem' }}>+</button>}
           </h3>
