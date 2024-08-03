@@ -1,6 +1,6 @@
 # moons-app
 
-moons-app is a front end for Moons Protocol, a resource sharing protocol for impact networks.
+moons-app is a front end for [Moons Protocol](https://github.com/JoelAlexander/moons-contracts), a resource sharing protocol for impact networks.
 
 ## Getting Started
 
