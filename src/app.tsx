@@ -812,8 +812,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
             </div>
           ) : (
             <h2 style={{ fontFamily: 'monospace', fontSize: '1.6rem', margin: '0' }}>
-              {isAdmin && <button onClick={() => setIsEditingName(true)} style={{ marginRight: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
               {moonsName}
+              {isAdmin && <button onClick={() => setIsEditingName(true)} style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
             </h2>
           )}
           {isEditingDescription ? (
@@ -822,26 +822,26 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               <div style={{ display: 'flex', flexDirection: 'row'}}>
                 <button onClick={handleDescriptionSubmit} disabled={!newConstitution || newConstitution === moonsConstitution}>Submit</button>
                 <button onClick={() => setIsEditingDescription(false)}>Cancel</button>
-                </div>
+              </div>
             </div>
           ) : (
             <h3 style={{ fontFamily: 'monospace', fontSize: '0.8rem', margin: '0' }}>
-              {isAdmin && <button onClick={() => setIsEditingDescription(true)} style={{ marginRight: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
               {moonsConstitution}
+              {isAdmin && <button onClick={() => setIsEditingDescription(true)} style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
             </h3>
           )}
           <h1 style={{ fontFamily: 'monospace', fontSize: '2rem', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', padding: '1rem'}}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {isParticipant && <h4 style={{ fontSize: '1.3rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{phaseLabel}</h4>}
-          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{timeAboutMaxString}</h4>
-        </div>
         {isParticipant && <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <h4 style={{ fontSize: '1.3rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{phaseLabel}</h4>
+          <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{timeAboutMaxString}</h4>
+        </div>}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>T = {(cycleTimeNumber / (3600 * 24)).toFixed(2)} days</h4>
           <h4 style={{ fontSize: '0.8rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{`Max = ${(allowanceMaxRatio*100).toFixed(2)}%`}</h4>
-        </div>}
+        </div>
       </div>
       <div style={{display: 'flex', flexDirection: 'row', width: '100%', justifyContent: 'center'}}>
         <SineWave height={148} markers={markers} />
