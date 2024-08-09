@@ -8,11 +8,12 @@ import { base } from 'wagmi/chains';
 import { createConfig, WagmiProvider } from 'wagmi';
 import './index.css';
 import { coinbaseWallet, walletConnect } from 'wagmi/connectors';
+import { switchChain } from 'viem/actions';
 
 const queryClient = new QueryClient()
 
 const coinbaseWalletConnector =
-    coinbaseWallet({ appName: 'Moons Protocol', version: '3', chainId: base.id })
+    coinbaseWallet({ appName: 'Moons Protocol', version: '4', chainId: base.id })
 
 const walletConnectConnector =
     walletConnect({ projectId: '4f0f56872ba068cb3260c517ff17a48e' })
@@ -24,8 +25,7 @@ const config = createConfig({
     transports: {
         [base.id]: http(import.meta.env.VITE_BASE_NODE)
     },
-    connectors: [coinbaseWalletConnector, walletConnectConnector],
-    
+    connectors: [coinbaseWalletConnector, walletConnectConnector]
   })
   
 declare module 'wagmi' {

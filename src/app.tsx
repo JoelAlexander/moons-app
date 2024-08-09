@@ -545,6 +545,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       }
 
       if (fundsDisbursedEvents.length > 0) {
+        fetchMoonsUsdcBalance()
         fetchMaximumAllowedDisbursement()
         fetchNextAllowedDisburseTime()
       }

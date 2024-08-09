@@ -4,7 +4,7 @@ import { EthereumProvider as EthereumProviderFactory } from '@walletconnect/ethe
 import { http, createPublicClient, createWalletClient, custom, type WalletClient, type PublicClient, Chain, Address } from 'viem';
 import { WC_PROJECT_ID } from './constants';
 import EthereumProvider from 'node_modules/@walletconnect/ethereum-provider/dist/types/EthereumProvider';
-import { createConfig, useAccount, useChainId, useChains, useConnect, useConnectorClient, useDisconnect, usePublicClient, useSwitchChain, useWalletClient, WagmiProvider } from 'wagmi';
+import { createConfig, useAccount, useChainId, useChains, useConnect, useConnections, useConnectorClient, useDisconnect, usePublicClient, useSwitchChain, useWalletClient, WagmiProvider } from 'wagmi';
 import { base as baseWagmi } from 'wagmi/chains';
 import { Config } from 'wagmi';
 import { AddressBubble } from './util';
@@ -24,6 +24,7 @@ export function useWalletClientContext(): {
 }
 
 export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
+  const connections = useConnections()
   const { connect: connectWallet, connectors } = useConnect()
   const { disconnect: disconnectWallet } = useDisconnect()
   const publicClient = usePublicClient()
@@ -34,11 +35,13 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
   const [showWalletOptions, setShowWalletOptions] = useState(false)
 
   const verifySwitchedToChain = () => {
+    const connection = connections[0]
+    if (!connection || !walletClient) return
     walletClient?.getChainId()
     .then((chainId) => {
       if (chainId !== base.id) {
         console.log(`Switching to ${base.id}`)
-        switchChain({ chainId: base.id })
+        switchChain({ chainId: base.id, connector: connection.connector })
       }
     })
   }
