@@ -951,7 +951,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               <button onClick={() => setShowAddParticipant(false)} style={{ marginRight: '0.5rem' }}>Cancel</button>
             </div>
           )}
-          <div style={{ display: 'flex', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', marginBottom: '1rem', flexWrap: 'wrap' }}>
             {participantList}
           </div>
           
@@ -972,7 +972,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               <button onClick={() => setShowAddAdmin(false)} style={{ marginRight: '0.5rem' }}>Cancel</button>
             </div>
           )}
-          <div style={{ display: 'flex' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
             {adminList}
           </div>
         </div>
