@@ -3,12 +3,11 @@ import { createRoot } from 'react-dom/client';
 import App from './app';
 import { Loader } from './loader';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { http, createPublicClient, createWalletClient, custom, type WalletClient, type PublicClient, Chain, Address } from 'viem';
+import { http } from 'viem';
 import { base } from 'wagmi/chains';
 import { createConfig, WagmiProvider } from 'wagmi';
 import './index.css';
 import { coinbaseWallet, walletConnect } from 'wagmi/connectors';
-import { switchChain } from 'viem/actions';
 
 const queryClient = new QueryClient()
 

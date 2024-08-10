@@ -6,7 +6,15 @@ const colors = [
   "#FF5733", "#33FF57", "#5733FF", "#FF33A1", "#33FFA1", "#A133FF", 
   "#FF9633", "#33FF96", "#9633FF", "#FF3396", "#33FFCC", "#3396FF",
   "#FFCC33", "#33CCFF", "#CC33FF", "#FF3366", "#66FF33", "#6633FF",
+  "#FF6F33", "#33FF6F", "#6F33FF", "#FF338F", "#33FF8F", "#8F33FF",
+  "#FFB733", "#33FFB7", "#B733FF", "#FF337F", "#33FFDF", "#337FFF",
+  "#FFD633", "#33D6FF", "#D633FF", "#FF3377", "#77FF33", "#7733FF",
+  "#FF7043", "#43FF70", "#7043FF", "#FF438B", "#43FF8B", "#8B43FF",
+  "#FFA143", "#43FFA1", "#A143FF", "#FF4377", "#43FFDD", "#4377FF",
+  "#FFDA43", "#43DAFF", "#DA43FF", "#FF4373", "#73FF43", "#7343FF",
+  "#FF8633", "#33FF86", "#8633FF", "#FF3386", "#33FFAA", "#3386FF",
 ];
+
 
 export const getColorFromAddress = (address: Address): string => {
   // Create a simple hash of the address

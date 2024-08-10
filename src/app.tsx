@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, ChangeEvent, MutableRefObj
 import { useWalletClientContext } from './loader'
 import { QRCodeSVG } from 'qrcode.react'
 import { Address, isAddress, getContract, encodeDeployData, Log, Client, getAddress, decodeEventLog, parseAbiItem, parseEventLogs } from 'viem'
-import { ERC20_ABI, USDC_ADDRESS } from './constants'
+import { ERC20_ABI, USDC_ADDRESS, WETH_ADDRESS } from './constants'
 import { MOONS_ABI, MOONS_BYTECODE } from './moons'
 import { base } from 'viem/chains'
 import { Abi } from 'viem'
@@ -77,6 +77,11 @@ type MoonsUserEvent = {
 
 const MAX_BLOCKS = BigInt(1000)
 
+const presetTokens = [
+  { name: 'USDC', address: USDC_ADDRESS },
+  { name: 'WETH', address: WETH_ADDRESS }
+]
+
 const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const { address, publicClient, walletClient } = useWalletClientContext()
   const [moonsName, setMoonsName] = useState('')
@@ -106,8 +111,9 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [newName, setNewName] = useState(moonsName);
   const [newConstitution, setNewConstitution] = useState(moonsConstitution);
   const [eventsLoaderState, setEventsLoaderState] = useState<[bigint, bigint]>([BigInt(0), BigInt(0)])
+  const [selectedToken, setSelectedToken] = useState<Address>(USDC_ADDRESS);
 
-  const usdcContract = getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: USDC_ADDRESS })
+  const tokenContract = getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: selectedToken });
   const moonsContract = getContract({ abi: MOONS_ABI, client: { public: publicClient }, address: selectedContract })
 
   const adminAddedAbi = parseAbiItem('event AdminAdded(address indexed admin, address indexed by, uint256 rank, string memo)')
@@ -143,7 +149,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   }
 
   const fetchMoonsUsdcBalance = () => {
-    usdcContract.read.balanceOf([selectedContract]).then(balance => setContractUsdcBalance(balance as bigint))
+    tokenContract.read.balanceOf([selectedContract]).then(balance => setContractUsdcBalance(balance as bigint))
   }
 
   const fetchAdmins = () => {
@@ -162,12 +168,14 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   }
 
   const fetchNextAllowedDisburseTime = () => {
+    if (address == '0x') return
     moonsContract.read.getNextAllowedDisburseTime([address]).then(time => {
       setNextAllowedDisburseTime(time as bigint)
     })
   }
 
   const fetchMaximumAllowedDisbursement = () => {
+    if (address == '0x') return
     publicClient.readContract({
       account: address,
       abi: MOONS_ABI,
@@ -645,7 +653,8 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     return () => { }
 }, [selectedContract, address])
 
-  const isParticipant = participants[address] ? true : false
+  const myAddress: Address = address
+  const isParticipant = participants[myAddress] ? true : false
   const cycleTimeNumber = Number(cycleTime)
   const participantCountNumber = Object.keys(participants).length
   const participantCount = BigInt(participantCountNumber)
@@ -653,29 +662,28 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const nowSeconds = BigInt(Date.now()) / BigInt(1000)
   const mayDisburse = nextAllowedDisburseTime ? nowSeconds > nextAllowedDisburseTime : false
   const timeTillNextDisburse = nextAllowedDisburseTime - nowSeconds
-  const currentCycleSecondsElapsed = cycleTime ? (nowSeconds - startTime) % cycleTime : BigInt(0)
-  const currentCycleSecondsRemaining = cycleTime - currentCycleSecondsElapsed
-  const currentCycleEnd = nowSeconds  + currentCycleSecondsRemaining
-  const currentCycleMid = currentCycleEnd - (cycleTime / BigInt(2))
-  const currentCycleStart = currentCycleEnd - cycleTime
 
   const getCycleLocation = (address: Address): [bigint, number, bigint] => {
     const rank = participants[address]
     if (!rank) return [BigInt(0), 0, BigInt(0)]
     if (!cycleTime) return [BigInt(0), 0, BigInt(0)]
     if (!participantCount) return [BigInt(0), 0, BigInt(0)]
+    const totalDurationSeconds = nowSeconds - startTime
+    const globalCycleNumber = totalDurationSeconds / cycleTime
+    const globalCycleStart = startTime + (globalCycleNumber * cycleTime)
     const rankOffsetSeconds = ((rank - BigInt(1)) * cycleTime) / participantCount
+    const addressCycleStart = globalCycleStart - rankOffsetSeconds
+    const cycleMax = addressCycleStart + (cycleTime / BigInt(2))
     const phaseSeconds = (nowSeconds - startTime + rankOffsetSeconds) % cycleTime
     const phaseSecondsNumber = Number(phaseSeconds)
     const cycleRadians = cycleTimeNumber !== 0 ? (phaseSecondsNumber * 2 * Math.PI / cycleTimeNumber) : 0
-    const cycleMaxTime =  currentCycleMid + rankOffsetSeconds
-    return [rankOffsetSeconds, cycleRadians, cycleMaxTime]
+    return [rankOffsetSeconds, cycleRadians, cycleMax]
   }
 
-  const yourCycleLocation = getCycleLocation(address)
+  const yourCycleLocation = getCycleLocation(myAddress)
   const yourCycleRadians = yourCycleLocation[1]
   const yourMarkers = isParticipant ? [{ radians: yourCycleRadians, color: "#007BFF", radius: 12}] : []
-  const participantMarkers = Object.keys(participants).filter(addr => addr !== address).map(addr => {
+  const participantMarkers = Object.keys(participants).filter(addr => addr !== myAddress).map(addr => {
     const cycleLocation = getCycleLocation(addr as Address)
     return { radians: cycleLocation[1], color: getColorFromAddress(addr as Address), radius: 6 }
   })
@@ -684,64 +692,42 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const allowanceMaxRatio = 1 / Math.sqrt(participantCountNumber)
   const yourCycleMultiplier = participantCountNumber ? (Math.sin(yourCycleRadians / 2) ** 2) * allowanceMaxRatio : 0
 
+  const formatTime = (totalSeconds: bigint) => {
+    const days = totalSeconds / BigInt(86400)
+    const hours = totalSeconds % BigInt(86400) / BigInt(3600)
+    const minutes = totalSeconds % BigInt(3600) / BigInt(60)
+    const seconds = totalSeconds % BigInt(60)
+  
+    const pad = (n: bigint) => n.toString().padStart(2, '0')
+  
+    return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`
+  }
+
+  const getPhaseEmoji = (cycleRadians: number) => {
+    const cyclePercentage = (cycleRadians / (2 * Math.PI)) * 100
+  
+    if (cyclePercentage < 2.5 || cyclePercentage >= 97.5) return "🌑"
+    if (cyclePercentage < 12.5) return "🌒"
+    if (cyclePercentage < 27.5) return "🌓"
+    if (cyclePercentage < 47.5) return "🌔"
+    if (cyclePercentage < 49.5) return "🌕"
+    if (cyclePercentage < 50.5) return "🌝"
+    if (cyclePercentage < 52.5) return "🌕"
+    if (cyclePercentage < 72.5) return "🌖"
+    if (cyclePercentage < 87.5) return "🌗"
+    if (cyclePercentage < 97.5) return "🌘"
+  
+    return "🌑"
+  }
+  
   const yourCycleMaxTime = yourCycleLocation ? yourCycleLocation[2] : BigInt(0)
   const currentCycleMaxAgo = nowSeconds - yourCycleMaxTime
   const currentCycleMaxIn = yourCycleMaxTime - nowSeconds
-
-  const formatTime = (totalSeconds: bigint) => {
-    const days = totalSeconds / BigInt(86400);
-    const hours = totalSeconds % BigInt(86400) / BigInt(3600);
-    const minutes = totalSeconds % BigInt(3600) / BigInt(60);
-    const seconds = totalSeconds % BigInt(60);
-  
-    const pad = (n: bigint) => n.toString().padStart(2, '0');
-  
-    return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
-  };
-
-  const getPhaseEmoji = (cycleRadians: number) => {
-    const cyclePercentage = (cycleRadians / (2 * Math.PI)) * 100;
-  
-    if (cyclePercentage < 2.5 || cyclePercentage >= 97.5) return "🌑";
-    if (cyclePercentage < 12.5) return "🌒";
-    if (cyclePercentage < 27.5) return "🌓";
-    if (cyclePercentage < 47.5) return "🌔";
-    if (cyclePercentage < 49.5) return "🌕";
-    if (cyclePercentage < 50.5) return "🌝";
-    if (cyclePercentage < 52.5) return "🌕";
-    if (cyclePercentage < 72.5) return "🌖";
-    if (cyclePercentage < 87.5) return "🌗";
-    if (cyclePercentage < 97.5) return "🌘";
-  
-    return "🌑"; // Fallback to a new moon emoji
-  };
-  
-  const getPhaseLabel = (cycleRadians: number, currentTime: bigint, maxTime: bigint) => {
-    const emoji = getPhaseEmoji(cycleRadians);
-    const phaseLabel =
-      cycleRadians < Math.PI * 0.05 || cycleRadians > Math.PI * 1.95
-        ? "New"
-        : cycleRadians > Math.PI * 0.95 && cycleRadians < Math.PI * 1.05
-        ? "Full"
-        : maxTime > currentTime
-        ? "Waxing"
-        : "Waning";
-  
-    return `${emoji} ${phaseLabel}`;
-  };
-  
-  const phaseLabel = getPhaseLabel(
-    yourCycleRadians,
-    nowSeconds,
-    yourCycleMaxTime
-  );
-  const timeFromMaxSeconds = yourCycleMaxTime > nowSeconds ? currentCycleMaxIn : currentCycleMaxAgo;
+  const timeFromMaxSeconds = yourCycleMaxTime > nowSeconds ? currentCycleMaxIn : currentCycleMaxAgo
   const timeAboutMaxString = yourCycleMaxTime > nowSeconds
     ? `${formatTime(timeFromMaxSeconds)} until max`
-    : `${formatTime(timeFromMaxSeconds)} since max`;
+    : `${formatTime(timeFromMaxSeconds)} since max`
   
-  const timeFromMinSeconds = yourCycleMaxTime > nowSeconds ? nowSeconds - currentCycleStart + yourCycleLocation[0] : currentCycleEnd + yourCycleLocation[0] - nowSeconds;
-
   const participantList = getSortedAddressesByRank(participants).map(addr => {
     return (
       <AddressBubble
@@ -752,6 +738,26 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       />
     )
   })
+
+  const getPhaseLabel = (cycleRadians: number, currentTime: bigint, maxTime: bigint) => {
+    const emoji = getPhaseEmoji(cycleRadians);
+    const phaseLabel =
+      cycleRadians < Math.PI * 0.05 || cycleRadians > Math.PI * 1.95
+        ? "New"
+        : cycleRadians > Math.PI * 0.95 && cycleRadians < Math.PI * 1.05
+        ? "Full"
+        : maxTime > currentTime
+        ? "Waxing"
+        : "Waning"
+  
+    return `${emoji} ${phaseLabel}`
+  }
+
+  const phaseLabel = getPhaseLabel(
+    yourCycleRadians,
+    nowSeconds,
+    yourCycleMaxTime
+  )
   
   const adminList = getSortedAddressesByRank(admins).map(addr => {
     return (
@@ -832,8 +838,14 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
             </h3>
           )}
           <h1 style={{ fontFamily: 'monospace', fontSize: '2rem', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
+          {/* <select value={selectedToken} onChange={(e) => setSelectedToken(e.target.value as Address)}>
+            {presetTokens.map(token => (
+              <option key={token.address} value={token.address}>{token.name}</option>
+            ))}
+          </select> */}
         </div>
       </div>
+
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', padding: '1rem'}}>
         {isParticipant && <div style={{ display: 'flex', flexDirection: 'column' }}>
           <h4 style={{ fontSize: '1.3rem', fontFamily: 'monospace', margin: '0', marginTop: '0.5rem' }}>{phaseLabel}</h4>
