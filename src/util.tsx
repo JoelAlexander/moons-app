@@ -139,7 +139,7 @@ export const AboutMoons = () => {
         <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Moons protocol funds are smart contracts that hold and disburse ERC20 tokens such as USDC.</p>
         <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Each fund is deployed with a fixed cycle time that defines how frequenly participants may access funds.</p>
         <SineWave height={120} markers={markers} />
-        <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Participants may disburse funds once per cycle, up to thier current allowance.</p>
+        <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Participants may disburse funds once per cycle, up to their current allowance.</p>
         <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>The percentage of the fund allowed to each participant oscillates sinusoidally during the cycle.</p>
         <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>The maximum allowance percentage is determined by the formula 1/sqrt(n) where n is the number of participants.</p>
       </div>,
@@ -155,7 +155,7 @@ export const AboutMoons = () => {
     {
       content: <div style={{ textAlign: 'left' }}>
       <h2 style={{ color: '#F6F1D5', justifyContent: 'left', margin: '0' }}>Vision</h2>
-      <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Imagine pooling funds for big family meals, where each contributor can claim thier own fair reimbursment and anyone can add to the pot anytime.</p>
+      <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '0.5rem' }}>Imagine pooling funds for big family meals, where each contributor can claim their own fair reimbursment and anyone can add to the pot anytime.</p>
       <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '1rem' }}>Envision robotics teams using Moons protocol for fair, cyclical budgets. Students manage funds strategically, with community donations boosting their potential.</p>
       <p style={{ fontSize: '1rem', color: '#F6F1D5', margin: '0', marginTop: '1rem' }}>Picture a community garden thriving where gardeners have access to fair, fluctuating funds for supplies, while neighbors can donate anytime to support local greenery.</p>
     </div>,
