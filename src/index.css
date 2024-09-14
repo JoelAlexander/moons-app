@@ -75,15 +75,29 @@ p {
   text-align: center;
 }
 
-/* Button Styles */
 div.moons-app button {
-  background-color: #474747;
-  color: #e8eced;
-  border: none;
-  padding: 0.5em 1em;
-  cursor: pointer;
-  transition: background-color 0.3s;
+  background-color: #3a3a3a; /* Darker background for contrast */
+  color: #f0f4f8; /* Light text for readability */
+  border: 1px solid #5a5a5a; /* Subtle border for structure */
+  border-radius: 0.375rem; /* Rounded corners for a modern look */
+  padding: 0.75em 1.5em; /* Improved padding for better sizing */
+  font-size: 1rem; /* Standard font size */
+  margin: 0.5em; /* Adds some spacing around the button */
+  cursor: pointer; /* Pointer cursor for interaction feedback */
+  transition: background-color 0.3s, transform 0.2s ease; /* Smooth transitions */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Slight shadow for depth */
 }
+
+div.moons-app button:hover {
+  background-color: #5a5a5a; /* Slightly lighter background on hover */
+  transform: scale(1.05); /* Subtle zoom-in effect on hover */
+}
+
+div.moons-app button:active {
+  background-color: #333333; /* Darker color on click */
+  transform: scale(0.98); /* Slight "press" effect */
+}
+
 
 button:disabled {
   background-color: #CCCCCC;

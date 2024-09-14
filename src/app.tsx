@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef, useMemo, ChangeEvent, MutableRefObject } from 'react'
+import React, { useState, useEffect, ChangeEvent } from 'react'
 import { useWalletClientContext } from './loader'
 import { QRCodeSVG } from 'qrcode.react'
-import { Address, isAddress, getContract, encodeDeployData, Log, Client, getAddress, decodeEventLog, parseAbiItem, parseEventLogs } from 'viem'
+import { Address, isAddress, getContract, encodeDeployData, getAddress } from 'viem'
 import { ERC20_ABI, USDC_ADDRESS, WETH_ADDRESS } from './constants'
 import { MOONS_ABI, MOONS_BYTECODE } from './moons'
 import { base } from 'viem/chains'
 import SineWave from './sine'
-import { AddressBubble, AboutMoons, getColorFromAddress } from './util'
+import { AboutMoons, getColorFromAddress } from './util'
 import { EventFeed } from './EventFeed'
 import { formatUSDC } from './util'
 import { EventCallbacks } from './EventFeed'
 import { ContractList } from './ContractList'
+import { Identity, Avatar, Name, Badge, Address as IdentityAddress } from '@coinbase/onchainkit/identity'
 
 function zip<T, U>(arr1: T[], arr2: U[]): [T, U][] {
   const length = Math.min(arr1.length, arr2.length);
@@ -32,20 +33,6 @@ function getSortedAddressesByRank(obj: {[key: Address]: BigInt}): Address[] {
       return 0;
   }) as Address[];
 }
-
-type MoonsUserEvent = {
-  eventName: string,
-  title: string,
-  message: string
-  primary?: Address
-  secondary?: Address
-  blockNumber: bigint
-}
-
-const presetTokens = [
-  { name: 'USDC', address: USDC_ADDRESS },
-  { name: 'WETH', address: WETH_ADDRESS }
-]
 
 const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const { address, publicClient, walletClient } = useWalletClientContext()
@@ -334,24 +321,34 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     ? `${formatTime(timeFromMaxSeconds)} until max`
     : `${formatTime(timeFromMaxSeconds)} since max`
   
-  const participantList = getSortedAddressesByRank(participants).map(addr => {
-    return (
-      <AddressBubble
-        key={`participant-${addr}`}
-        address={addr}
-        textColor={getColorFromAddress(addr)}
-        onLongPress={() => isAdmin && removeParticipant(addr)}
-      />
-    )
-  })
+    const participantList = getSortedAddressesByRank(participants).map(addr => {
+      return (
+        <Identity
+          key={`participant-${addr}`}
+          address={addr}
+          hasCopyAddressOnClick={true}
+        >
+          <Avatar />
+          <Name />
+          <Badge />
+          <IdentityAddress />
+          {isAdmin && (
+            <div onClick={() => removeParticipant(addr)} style={{ cursor: 'pointer', marginLeft: '0.5rem' }}>
+              🗑️
+            </div>
+          )}
+        </Identity>
+      );
+    });
+    
 
   const getPhaseLabel = (cycleRadians: number, currentTime: bigint, maxTime: bigint) => {
     const emoji = getPhaseEmoji(cycleRadians);
     const phaseLabel =
       cycleRadians < Math.PI * 0.05 || cycleRadians > Math.PI * 1.95
-        ? "New"
+        ? "New Moon"
         : cycleRadians > Math.PI * 0.95 && cycleRadians < Math.PI * 1.05
-        ? "Full"
+        ? "Full Moon"
         : maxTime > currentTime
         ? "Waxing"
         : "Waning"
@@ -367,14 +364,19 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   
   const adminList = getSortedAddressesByRank(admins).map(addr => {
     return (
-      <AddressBubble
-        key={`admin-${addr}`}
-        address={addr}
-        textColor={getColorFromAddress(addr)}
-        onLongPress={() => isAdmin && removeAdmin(addr)}
-      />
-    )
-  })
+      <Identity key={`admin-${addr}`} address={addr} hasCopyAddressOnClick={true}>
+        <Avatar />
+        <Name />
+        <Badge />
+        <IdentityAddress />
+        {isAdmin && (
+          <div onClick={() => removeAdmin(addr)} style={{ cursor: 'pointer', marginLeft: '0.5rem' }}>
+            🗑️
+          </div>
+        )}
+      </Identity>
+    );
+  });
 
   const copyToClipboard = (addr: string) => {
     navigator.clipboard.writeText(`${addr}`);
@@ -529,7 +531,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               <button onClick={() => setShowAddParticipant(false)} style={{ marginRight: '0.5rem' }}>Cancel</button>
             </div>
           )}
-          <div style={{ display: 'flex', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', marginBottom: '1rem', flexWrap: 'wrap', justifyContent: 'space-evenly', gap: '0.5rem' }}>
             {participantList}
           </div>
           
@@ -550,7 +552,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
               <button onClick={() => setShowAddAdmin(false)} style={{ marginRight: '0.5rem' }}>Cancel</button>
             </div>
           )}
-          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-evenly', gap: '0.5rem' }}>
             {adminList}
           </div>
         </div>

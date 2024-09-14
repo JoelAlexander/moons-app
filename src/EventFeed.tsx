@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useWalletClientContext } from './loader'
-import { Address, Log, Client, decodeEventLog, parseAbiItem, parseEventLogs } from 'viem'
+import { Address, decodeEventLog, parseAbiItem, parseEventLogs } from 'viem'
 import { MOONS_ABI } from './moons'
-import { AddressBubble, getColorFromAddress } from './util'
+import { getColorFromAddress } from './util'
 import { MutableRefObject } from 'react'
 import { USDC_ADDRESS } from './constants'
 import { formatUSDC } from './util'
+import { Address as IdentityAddress, Avatar, Badge, Identity, Name } from '@coinbase/onchainkit/identity'
 
 function usePrevious<T>(
   value: T,
@@ -434,24 +435,88 @@ export const EventFeed = ({
       </div>
 
       {eventFeed.map((event, index) => (
-          <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '1rem', marginTop: '1rem', borderRadius: '20px', background: '#333333', paddingLeft: '1rem', paddingRight: '1rem', paddingTop: '1rem', paddingBottom: '0.5rem' }}>
+        <div
+          key={index}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            marginBottom: '1rem',
+            marginTop: '1rem',
+            borderRadius: '20px',
+            background: '#333333',
+            padding: '1rem 1rem 0.5rem 1rem',
+            rowGap: '0.5rem'
+          }}
+        >
           <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-            <p style={{ color: '#FAFAFA', margin: '0', alignContent: 'center', fontFamily: 'Arial, sans-serif', fontSize: '1rem', fontWeight: 'bold' }}>{event.title}</p>
-            <p style={{ fontFamily: 'monospace', color: '#FAFAFA', margin: '0', fontSize: '0.8rem' }}>{timeInPast(blockNumber, event.blockNumber)} ago</p>
+            <p
+              style={{
+                color: '#FAFAFA',
+                margin: '0',
+                alignContent: 'center',
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '1rem',
+                fontWeight: 'bold',
+              }}
+            >
+              {event.title}
+            </p>
+            <p style={{ fontFamily: 'monospace', color: '#FAFAFA', margin: '0', fontSize: '0.8rem' }}>
+              {timeInPast(blockNumber, event.blockNumber)} ago
+            </p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
-            {event.primary && <AddressBubble address={event.primary} textColor={getColorFromAddress(event.primary)} />}
+            {event.primary && (
+              <Identity address={event.primary} hasCopyAddressOnClick={true}>
+                <Avatar />
+                <Name />
+                <Badge />
+                <IdentityAddress />
+              </Identity>
+            )}
           </div>
-          {event.secondary && <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
-            <p style={{ color: '#FAFAFA', marginRight: '0.5rem', alignContent: 'center', fontWeight: 'bold', fontFamily: 'Arial, sans-serif' }}>By</p>
-            <AddressBubble address={event.secondary} textColor={getColorFromAddress(event.secondary)} />
-          </div>}
-          {event.message && <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
-            <p style={{ color: '#FAFAFA', marginRight: '0.5rem', alignContent: 'center', fontWeight: 'bold', fontFamily: 'Arial, sans-serif' }}>Message</p>
-            <p style={{ color: '#F6F1D5', marginLeft: '0.5rem', alignContent: 'center', fontFamily: 'Arial, sans-serif' }}>{event.message}</p>
-          </div>}
+          {event.secondary && (
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+              <p
+                style={{
+                  color: '#FAFAFA',
+                  marginRight: '0.5rem',
+                  alignContent: 'center',
+                  fontWeight: 'bold',
+                  fontFamily: 'Arial, sans-serif',
+                }}
+              >
+                By
+              </p>
+              <Identity address={event.secondary} hasCopyAddressOnClick={true}>
+                <Avatar />
+                <Name />
+                <Badge />
+                <IdentityAddress />
+              </Identity>
+            </div>
+          )}
+          {event.message && (
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+              <p
+                style={{
+                  color: '#FAFAFA',
+                  marginRight: '0.5rem',
+                  alignContent: 'center',
+                  fontWeight: 'bold',
+                  fontFamily: 'Arial, sans-serif',
+                }}
+              >
+                Message
+              </p>
+              <p style={{ color: '#F6F1D5', marginLeft: '0.5rem', alignContent: 'center', fontFamily: 'Arial, sans-serif' }}>
+                {event.message}
+              </p>
+            </div>
+          )}
         </div>
       ))}
+
       { eventFeed.length == 0 && <p style={{ color: '#e8eced' }}>No activity to show</p>}
       { address !== '0x' && eventsLoading && <p style={{ color: '#e8eced' }}>Loading activity...</p>}
       {address !== '0x' && <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', marginTop: '0.5rem'}}>

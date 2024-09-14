@@ -2,7 +2,6 @@ import React, { ReactNode, useState, useEffect, createContext, useContext } from
 import { base } from 'viem/chains';
 import { type WalletClient, type PublicClient, Address as AddressString } from 'viem';
 import { Connector, useAccount, useConnect, useConnections, useConnectorClient, useDisconnect, usePublicClient, useSwitchChain, useWalletClient } from 'wagmi';
-import { AddressBubble } from './util';
 import { 
   ConnectWallet, 
   Wallet, 
@@ -71,7 +70,7 @@ export function Loader({ children }: { children: ReactNode | ReactNode[] }) {
             <Name />
           </ConnectWallet>
           <WalletDropdown>
-            <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+            <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick={true}>
               <Avatar />
               <Name chain={base} />
               <Address />
