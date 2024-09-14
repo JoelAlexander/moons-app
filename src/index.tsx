@@ -38,7 +38,11 @@ const connectors = connectorsForWallets(
   ],
   {
     appName: 'moons',
-    projectId: import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID
+    projectId: import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID,
+    walletConnectParameters: {},
+    appDescription: '',
+    appUrl: import.meta.env.VITE_APP_URL,
+    appIcon: '',
   },
 );
 
@@ -48,7 +52,7 @@ const config = createConfig({
         [base.id]: http(import.meta.env.VITE_BASE_NODE)
     },
     connectors: connectors,
-    multiInjectedProviderDiscovery: false,
+    multiInjectedProviderDiscovery: false
   })
   
 declare module 'wagmi' {
