@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { Address } from 'viem';
 import SineWave from './sine';
 
+export function formatUSDC(amount: bigint): string {
+  const usdcDecimals = 6n; // USDC has 6 decimal places
+  const fprimary = 10n ** usdcDecimals;
+  const integerPart = amount / fprimary;
+  const fractionalPart = amount % fprimary;
+
+  const fractionalString = fractionalPart.toString().padStart(Number(usdcDecimals), '0').slice(0, 2);
+  return `${integerPart.toString()}.${fractionalString}`;
+}
+
 const colors = [
   "#FF5733", "#33FF57", "#5733FF", "#FF33A1", "#33FFA1", "#A133FF", 
   "#FF9633", "#33FF96", "#9633FF", "#FF3396", "#33FFCC", "#3396FF",

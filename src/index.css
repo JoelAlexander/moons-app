@@ -76,7 +76,7 @@ p {
 }
 
 /* Button Styles */
-button {
+div.moons-app button {
   background-color: #474747;
   color: #e8eced;
   border: none;

@@ -1,30 +1,54 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './app';
 import { Loader } from './loader';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { http } from 'viem';
+import { Chain, http } from 'viem';
 import { base } from 'wagmi/chains';
 import { createConfig, WagmiProvider } from 'wagmi';
+import '@coinbase/onchainkit/styles.css';
+import '@rainbow-me/rainbowkit/styles.css';
 import './index.css';
-import { coinbaseWallet, walletConnect } from 'wagmi/connectors';
+import { OnchainKitProvider } from '@coinbase/onchainkit';
+import { RainbowKitProvider, connectorsForWallets } from '@rainbow-me/rainbowkit';
+import {
+  coinbaseWallet,
+  metaMaskWallet,
+  walletConnectWallet
+} from '@rainbow-me/rainbowkit/wallets';
+
+coinbaseWallet.preference = 'all'
 
 const queryClient = new QueryClient()
 
-const coinbaseWalletConnector =
-    coinbaseWallet({ appName: 'Moons Protocol', version: '4', chainId: base.id })
-
-const walletConnectConnector =
-    walletConnect({ projectId: '4f0f56872ba068cb3260c517ff17a48e' })
-
-console.log(import.meta.env.VITE_BASE_NODE);
+// **Set up connectors with the custom wallet**
+const connectors = connectorsForWallets(
+  [
+    {
+      groupName: 'Recommended Wallet',
+      wallets: [coinbaseWallet],
+    },
+    {
+      groupName: 'Other Wallets',
+      wallets: [
+        walletConnectWallet,
+        metaMaskWallet
+      ],
+    }
+  ],
+  {
+    appName: 'moons',
+    projectId: import.meta.env.VITE_WALLET_CONNECT_PROJECT_ID
+  },
+);
 
 const config = createConfig({
     chains: [ base ],
     transports: {
         [base.id]: http(import.meta.env.VITE_BASE_NODE)
     },
-    connectors: [coinbaseWalletConnector, walletConnectConnector]
+    connectors: connectors,
+    multiInjectedProviderDiscovery: false,
   })
   
 declare module 'wagmi' {
@@ -33,12 +57,34 @@ declare module 'wagmi' {
     }
 }
 
+type Props = { children: ReactNode };
+
+function OnchainProviders({ children }: Props) {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <OnchainKitProvider
+          apiKey={import.meta.env.VITE_PUBLIC_ONCHAINKIT_API_KEY}
+          chain={base}
+        >
+          <RainbowKitProvider initialChain={base} modalSize='compact'>
+            {children}
+          </RainbowKitProvider>
+        </OnchainKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider> 
+  );
+}
+
 const container = document.getElementById('app');
-const root = createRoot(container!!);
+
+if (!container) {
+  throw new Error("Failed to find the root element with id 'app'.");
+}
+
+const root = createRoot(container);
 root.render(
-<WagmiProvider config={config}>
-<QueryClientProvider client={queryClient}>
+<OnchainProviders>
 <Loader><App /></Loader>
-</QueryClientProvider>
-</WagmiProvider>
+</OnchainProviders>
 );
