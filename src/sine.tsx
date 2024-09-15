@@ -50,7 +50,7 @@ const SineWave = ({ height, markers }: { height: number, markers: { radians: num
           viewBox={`0 0 ${width} ${height}`}
           preserveAspectRatio="none"
       >
-          <path d={pathData} fill="none" stroke="#F6F1D5" strokeWidth="5" />
+          <path d={pathData} fill="none" stroke="#FFEBB9" strokeWidth="5" />
           {markerElements}
       </svg>
   );

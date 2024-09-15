@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useWalletClientContext } from './loader'
 import { Address, decodeEventLog, parseAbiItem, parseEventLogs } from 'viem'
 import { MOONS_ABI } from './moons'
-import { getColorFromAddress } from './util'
+import { formatTokenBalance, getColorFromAddress, getTokenByAddress, getTokenDecimals } from './util'
 import { MutableRefObject } from 'react'
 import { USDC_ADDRESS } from './constants'
 import { formatUSDC } from './util'
 import { Address as IdentityAddress, Avatar, Badge, Identity, Name } from '@coinbase/onchainkit/identity'
+import { TokenChip } from '@coinbase/onchainkit/token'
 
 function usePrevious<T>(
   value: T,
@@ -35,13 +36,16 @@ function timeInPast(currentBlock: bigint, eventBlock: bigint): string {
 }
 
 type MoonsUserEvent = {
-  eventName: string,
-  title: string,
-  message: string
-  primary?: Address
-  secondary?: Address
-  blockNumber: bigint
-}
+  eventName: string;
+  title: string;
+  message: string;
+  primary?: Address;
+  secondary?: Address;
+  amount?: bigint;
+  token?: Address;
+  blockNumber: bigint;
+};
+
 
 export type EventCallbacks = {
   onAdminChange?: () => void;
@@ -51,7 +55,7 @@ export type EventCallbacks = {
   onNameChange?: () => void;
 }
 
-const MAX_BLOCKS = BigInt(1000)
+const MAX_BLOCKS = BigInt(500)
 
 export const EventFeed = ({ 
   selectedContract,
@@ -202,10 +206,11 @@ export const EventFeed = ({
               eventName: event.eventName,
               title: 'Funds Disbursed',
               primary: event.args.by,
-              secondary: event.args.token,
+              amount: event.args.amount,
+              token: event.args.token,
               message: event.args.memo,
-              blockNumber: parsedEvent.blockNumber
-            } as MoonsUserEvent
+              blockNumber: parsedEvent.blockNumber,
+            } as MoonsUserEvent;  
           case 'Knock':
             return {
               eventName: event.eventName,
@@ -422,9 +427,11 @@ export const EventFeed = ({
 
   const handleLoadMoreEvents = () => {
     if (canLoadEvents) {
-      setEventsLoaderState([eventsLoaderState[0] - BigInt((3600 * 24) / 2 / 2 / 2), eventsLoaderState[1]])
+      setEventsLoaderState([eventsLoaderState[0] - BigInt(3600), eventsLoaderState[1]])
     }
   }
+
+  console.log(`${eventFeed.length}`)
 
   return (
     <>
@@ -434,88 +441,174 @@ export const EventFeed = ({
         </h3>
       </div>
 
-      {eventFeed.map((event, index) => (
-        <div
-          key={index}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            marginBottom: '1rem',
-            marginTop: '1rem',
-            borderRadius: '20px',
-            background: '#333333',
-            padding: '1rem 1rem 0.5rem 1rem',
-            rowGap: '0.5rem'
-          }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-            <p
-              style={{
-                color: '#FAFAFA',
-                margin: '0',
-                alignContent: 'center',
-                fontFamily: 'Arial, sans-serif',
-                fontSize: '1rem',
-                fontWeight: 'bold',
-              }}
-            >
-              {event.title}
-            </p>
-            <p style={{ fontFamily: 'monospace', color: '#FAFAFA', margin: '0', fontSize: '0.8rem' }}>
-              {timeInPast(blockNumber, event.blockNumber)} ago
-            </p>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
-            {event.primary && (
+      {eventFeed.map((event, index) => 
+        event.eventName === 'FundsDisbursed' ? (
+          <div
+            key={index}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              marginBottom: '1rem',
+              marginTop: '1rem',
+              borderRadius: '20px',
+              background: '#333333',
+              padding: '1rem 1rem 0.5rem 1rem',
+              rowGap: '0.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+              <p
+                style={{
+                  color: '#FAFAFA',
+                  margin: '0',
+                  alignContent: 'center',
+                  fontFamily: 'Arial, sans-serif',
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
+                }}
+              >
+                {event.title}
+              </p>
+              <p style={{ fontFamily: 'monospace', color: '#FAFAFA', margin: '0', fontSize: '0.8rem' }}>
+                {timeInPast(blockNumber, event.blockNumber)} ago
+              </p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+              <p
+                style={{
+                  color: '#FAFAFA',
+                  marginRight: '0.5rem',
+                  fontWeight: 'bold',
+                  fontFamily: 'Arial, sans-serif',
+                }}
+              >
+                Amount:
+              </p>
+              <p style={{ color: '#FFEBB9', margin: '0', fontFamily: 'Arial, sans-serif' }}>
+                {formatTokenBalance(event.amount ?? BigInt(0), getTokenDecimals(event.token ?? '0x'))}
+              </p>
+              <TokenChip token={getTokenByAddress(event.token ?? '0x')!!} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+              <p
+                style={{
+                  color: '#FAFAFA',
+                  marginRight: '0.5rem',
+                  fontWeight: 'bold',
+                  fontFamily: 'Arial, sans-serif',
+                }}
+              >
+                By:
+              </p>
               <Identity address={event.primary} hasCopyAddressOnClick={true}>
                 <Avatar />
                 <Name />
                 <Badge />
                 <IdentityAddress />
               </Identity>
+            </div>
+            {event.message && (
+              <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                <p
+                  style={{
+                    color: '#FAFAFA',
+                    marginRight: '0.5rem',
+                    fontWeight: 'bold',
+                    fontFamily: 'Arial, sans-serif',
+                  }}
+                >
+                  Message:
+                </p>
+                <p style={{ color: '#FFEBB9', margin: '0', fontFamily: 'Arial, sans-serif' }}>
+                  {event.message}
+                </p>
+              </div>
             )}
           </div>
-          {event.secondary && (
-            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+        ) : (
+          <div
+            key={index}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              marginBottom: '1rem',
+              marginTop: '1rem',
+              borderRadius: '20px',
+              background: '#333333',
+              padding: '1rem 1rem 0.5rem 1rem',
+              rowGap: '0.5rem'
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
               <p
                 style={{
                   color: '#FAFAFA',
-                  marginRight: '0.5rem',
+                  margin: '0',
                   alignContent: 'center',
-                  fontWeight: 'bold',
                   fontFamily: 'Arial, sans-serif',
+                  fontSize: '1rem',
+                  fontWeight: 'bold',
                 }}
               >
-                By
+                {event.title}
               </p>
-              <Identity address={event.secondary} hasCopyAddressOnClick={true}>
-                <Avatar />
-                <Name />
-                <Badge />
-                <IdentityAddress />
-              </Identity>
+              <p style={{ fontFamily: 'monospace', color: '#FAFAFA', margin: '0', fontSize: '0.8rem' }}>
+                {timeInPast(blockNumber, event.blockNumber)} ago
+              </p>
             </div>
-          )}
-          {event.message && (
             <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
-              <p
-                style={{
-                  color: '#FAFAFA',
-                  marginRight: '0.5rem',
-                  alignContent: 'center',
-                  fontWeight: 'bold',
-                  fontFamily: 'Arial, sans-serif',
-                }}
-              >
-                Message
-              </p>
-              <p style={{ color: '#F6F1D5', marginLeft: '0.5rem', alignContent: 'center', fontFamily: 'Arial, sans-serif' }}>
-                {event.message}
-              </p>
+              {event.primary && (
+                <Identity address={event.primary} hasCopyAddressOnClick={true}>
+                  <Avatar />
+                  <Name />
+                  <Badge />
+                  <IdentityAddress />
+                </Identity>
+              )}
             </div>
-          )}
-        </div>
-      ))}
+            {event.secondary && (
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+                <p
+                  style={{
+                    color: '#FAFAFA',
+                    marginRight: '0.5rem',
+                    alignContent: 'center',
+                    fontWeight: 'bold',
+                    fontFamily: 'Arial, sans-serif',
+                  }}
+                >
+                  By
+                </p>
+                <Identity address={event.secondary} hasCopyAddressOnClick={true}>
+                  <Avatar />
+                  <Name />
+                  <Badge />
+                  <IdentityAddress />
+                </Identity>
+              </div>
+            )}
+            {event.message && (
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
+                <p
+                  style={{
+                    color: '#FAFAFA',
+                    marginRight: '0.5rem',
+                    alignContent: 'center',
+                    fontWeight: 'bold',
+                    fontFamily: 'Arial, sans-serif',
+                  }}
+                >
+                  Message
+                </p>
+                <p style={{ color: '#FFEBB9', marginLeft: '0.5rem', alignContent: 'center', fontFamily: 'Arial, sans-serif' }}>
+                  {event.message}
+                </p>
+              </div>
+            )}
+          </div>
+        )
+      )}
+
 
       { eventFeed.length == 0 && <p style={{ color: '#e8eced' }}>No activity to show</p>}
       { address !== '0x' && eventsLoading && <p style={{ color: '#e8eced' }}>Loading activity...</p>}

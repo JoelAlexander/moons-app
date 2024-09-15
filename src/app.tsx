@@ -6,12 +6,14 @@ import { ERC20_ABI, USDC_ADDRESS, WETH_ADDRESS } from './constants'
 import { MOONS_ABI, MOONS_BYTECODE } from './moons'
 import { base } from 'viem/chains'
 import SineWave from './sine'
-import { AboutMoons, getColorFromAddress } from './util'
+import { AboutMoons, formatTokenBalance, getColorFromAddress } from './util'
 import { EventFeed } from './EventFeed'
 import { formatUSDC } from './util'
 import { EventCallbacks } from './EventFeed'
 import { ContractList } from './ContractList'
 import { Identity, Avatar, Name, Badge, Address as IdentityAddress } from '@coinbase/onchainkit/identity'
+import { Token, TokenChip, TokenSelectDropdown } from '@coinbase/onchainkit/token';
+import { PRESET_TOKENS } from './constants'
 
 function zip<T, U>(arr1: T[], arr2: U[]): [T, U][] {
   const length = Math.min(arr1.length, arr2.length);
@@ -33,6 +35,7 @@ function getSortedAddressesByRank(obj: {[key: Address]: BigInt}): Address[] {
       return 0;
   }) as Address[];
 }
+
 
 const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const { address, publicClient, walletClient } = useWalletClientContext()
@@ -57,19 +60,25 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [newName, setNewName] = useState(moonsName);
   const [newConstitution, setNewConstitution] = useState(moonsConstitution);
-  const [selectedToken, setSelectedToken] = useState<Address>(USDC_ADDRESS);
+  const [adminMode, setAdminMode] = useState(false);
+  const [disbursementMemo, setDisbursementMemo] = useState('');
+  const [selectedToken, setSelectedToken] = useState<Token>(PRESET_TOKENS[0]);
 
-  const tokenContract = getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: selectedToken });
+  const tokenContract = getContract({ abi: ERC20_ABI, client: { public: publicClient }, address: selectedToken.address as Address });
   const moonsContract = getContract({ abi: MOONS_ABI, client: { public: publicClient }, address: selectedContract })
 
   const fetchName = () => {
     moonsContract.read.name().then(name => {
       setMoonsName(name as string)
+      setNewName(name as string)
     })
   }
 
   const fetchConstitution = () => {
-    moonsContract.read.constitution().then(constitution => setMoonsConstitution(constitution as string))
+    moonsContract.read.constitution().then(constitution => {
+      setMoonsConstitution(constitution as string)
+      setNewConstitution(constitution as string)
+    })
   }
 
   const fetchStartTime = () => {
@@ -141,11 +150,12 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
       abi: MOONS_ABI,
       address: selectedContract,
       functionName: 'disburseFunds',
-      args: [USDC_ADDRESS, valueInMicroUSDC, '']
-    })
-    setShowDisbursementInput(false)
-    setDisbursementValue('0')
-  }
+      args: [USDC_ADDRESS, valueInMicroUSDC, disbursementMemo]
+    });
+    setShowDisbursementInput(false);
+    setDisbursementValue('0');
+    setDisbursementMemo('');
+  };
 
   const addAdmin = () => {
     walletClient?.writeContract({
@@ -244,9 +254,10 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
     fetchMaximumAllowedDisbursement()
     fetchNextAllowedDisburseTime()
     return () => { }
-}, [selectedContract, address])
+  }, [selectedContract, address, selectedToken])
 
   const myAddress: Address = address
+  const myAdminRank = admins[address || '0x'] || BigInt(0);
   const isParticipant = participants[myAddress] ? true : false
   const cycleTimeNumber = Number(cycleTime)
   const participantCountNumber = Object.keys(participants).length
@@ -323,21 +334,22 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   
     const participantList = getSortedAddressesByRank(participants).map(addr => {
       return (
-        <Identity
-          key={`participant-${addr}`}
-          address={addr}
-          hasCopyAddressOnClick={true}
-        >
-          <Avatar />
-          <Name />
-          <Badge />
-          <IdentityAddress />
-          {isAdmin && (
-            <div onClick={() => removeParticipant(addr)} style={{ cursor: 'pointer', marginLeft: '0.5rem' }}>
+        <div key={`participant-${addr}`} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+          <Identity
+            address={addr}
+            hasCopyAddressOnClick={true}
+          >
+            <Avatar />
+            <Name />
+            <Badge />
+            <IdentityAddress />
+          </Identity>
+          {isAdmin && adminMode && (
+            <button onClick={() => removeParticipant(addr)} style={{ cursor: 'pointer', marginLeft: '0.5rem' }}>
               🗑️
-            </div>
+            </button>
           )}
-        </Identity>
+        </div>
       );
     });
     
@@ -364,17 +376,19 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
   
   const adminList = getSortedAddressesByRank(admins).map(addr => {
     return (
-      <Identity key={`admin-${addr}`} address={addr} hasCopyAddressOnClick={true}>
-        <Avatar />
-        <Name />
-        <Badge />
-        <IdentityAddress />
-        {isAdmin && (
-          <div onClick={() => removeAdmin(addr)} style={{ cursor: 'pointer', marginLeft: '0.5rem' }}>
+      <div key={`admin-${addr}`} style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+        <Identity address={addr} hasCopyAddressOnClick={true}>
+          <Avatar />
+          <Name />
+          <Badge />
+          <IdentityAddress />
+        </Identity>
+        {isAdmin && adminMode && (admins[addr] <= myAdminRank) && (
+          <button onClick={() => removeAdmin(addr)} style={{ cursor: 'pointer', marginLeft: '0.5rem' }}>
             🗑️
-          </div>
+          </button>
         )}
-      </Identity>
+      </div>
     );
   });
 
@@ -421,11 +435,38 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
 
   return (
     <div className='moons-app' style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', width: '100%', maxWidth: '42rem', alignSelf: 'center' }}>
+      {adminMode && (
+        <div
+          style={{
+            textAlign: 'center',
+            margin: '1rem',
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
+            padding: '0.5rem',
+            borderRadius: '4px',
+          }}
+        >
+          <label>
+            Admin Mode is ON
+            <input
+              type="checkbox"
+              checked={adminMode}
+              onChange={() => setAdminMode(!adminMode)}
+              style={{ marginLeft: '0.5rem' }}
+            />
+          </label>
+        </div>
+      )}
       {address === '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem' }}>Connect a wallet to interact with this contract</h4>}
       {!isParticipant && address !== '0x' && <h4 style={{ fontWeight: 'lighter', color: '#e8eced', fontSize: '1rem', margin: '0', marginTop: '0.5rem', marginLeft: '1rem'}}>You are not currently a participant of this contract</h4>}
       <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', padding: '1rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', marginRight: '1rem' }}>
-          <QRCodeSVG value={getAddress(selectedContract)} onClick={() => copyToClipboard(selectedContract)} fgColor='#F6F1D5' bgColor='#000000' />
+          <QRCodeSVG
+            value={getAddress(selectedContract)}
+            onClick={() => copyToClipboard(selectedContract)}
+            fgColor="#FFEBB9"
+            bgColor="#000000"
+          />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           {isEditingName ? (
@@ -439,7 +480,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           ) : (
             <h2 style={{ fontFamily: 'monospace', fontSize: '1.6rem', margin: '0' }}>
               {moonsName}
-              {isAdmin && <button onClick={() => setIsEditingName(true)} style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
+              {isAdmin && adminMode && <button onClick={() => setIsEditingName(true)} style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
             </h2>
           )}
           {isEditingDescription ? (
@@ -453,15 +494,15 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           ) : (
             <h3 style={{ fontFamily: 'monospace', fontSize: '0.8rem', margin: '0' }}>
               {moonsConstitution}
-              {isAdmin && <button onClick={() => setIsEditingDescription(true)} style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
+              {isAdmin && adminMode && <button onClick={() => setIsEditingDescription(true)} style={{ marginLeft: '0.5rem', fontSize: '0.6rem' }}>✏️</button>}
             </h3>
           )}
-          <h1 style={{ fontFamily: 'monospace', fontSize: '2rem', margin: '0', color: '#F6F1D5' }}>{`${formatUSDC(contractUsdcBalance)} USDC`}</h1>
-          {/* <select value={selectedToken} onChange={(e) => setSelectedToken(e.target.value as Address)}>
-            {presetTokens.map(token => (
-              <option key={token.address} value={token.address}>{token.name}</option>
-            ))}
-          </select> */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <h1 style={{ fontFamily: 'monospace', fontSize: '2rem', margin: '0', color: '#FFEBB9' }}>
+              {formatTokenBalance(contractUsdcBalance, selectedToken.decimals)}
+            </h1>
+            <TokenSelectDropdown token={selectedToken} setToken={setSelectedToken} options={PRESET_TOKENS} />
+          </div>
         </div>
       </div>
 
@@ -499,8 +540,29 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
                       onChange={handleDisbursementChange}
                       style={{ marginRight: '0.5rem' }}
                     />
-                    <button onClick={disburseFunds} style={{ marginRight: '0.5rem' }} disabled={!!disbursmentError || !disbursementValue}>Disburse</button>
-                    <button onClick={() => setShowDisbursementInput(false)} style={{ marginRight: '0.5rem' }}>Cancel</button>
+                    <input
+                      type="text"
+                      placeholder="Memo"
+                      value={disbursementMemo}
+                      onChange={(e) => setDisbursementMemo(e.target.value)}
+                      style={{ marginRight: '0.5rem', marginTop: '0.5rem' }}
+                    />
+                    <button
+                      onClick={disburseFunds}
+                      style={{ marginRight: '0.5rem', marginTop: '0.5rem' }}
+                      disabled={!!disbursmentError || !disbursementValue}
+                    >
+                      Disburse
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowDisbursementInput(false);
+                        setDisbursementMemo('');
+                      }}
+                      style={{ marginRight: '0.5rem', marginTop: '0.5rem' }}
+                    >
+                      Cancel
+                    </button>
                     {disbursmentError && <div style={{ color: 'red' }}>{disbursmentError}</div>}
                   </div>
                 ) : (
@@ -516,7 +578,9 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
         <div style={{display: 'flex', flexDirection: 'column', padding: '1rem'}}>
           <h3 style={{ margin: '0', fontSize: '1.3rem', fontWeight: 'lighter', letterSpacing: '0.0618rem' }}>
             Participants
-            {isAdmin && !showAddParticipant && <button onClick={() => setShowAddParticipant(true)} style={{ marginLeft: '0.5rem' }}>+</button>}
+            {isAdmin && adminMode && !showAddParticipant && (
+              <button onClick={() => setShowAddParticipant(true)} style={{ marginLeft: '0.5rem' }}>+</button>
+            )}
           </h3>
           {showAddParticipant && (
             <div>
@@ -537,7 +601,7 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
           
           <h3 style={{ margin: '0', fontSize: '1.3rem', fontWeight: 'lighter', letterSpacing: '0.0618rem' }}>
             Administrators
-            {isAdmin && !showAddAdmin && <button onClick={() => setShowAddAdmin(true)} style={{ marginLeft: '0.5rem' }}>+</button>}
+            {isAdmin && adminMode && !showAddAdmin && <button onClick={() => setShowAddAdmin(true)} style={{ marginLeft: '0.5rem' }}>+</button>}
           </h3>
           {showAddAdmin && (
             <div>
@@ -556,6 +620,18 @@ const Moons = ({ selectedContract } : { selectedContract: Address }) => {
             {adminList}
           </div>
         </div>
+        {isAdmin && (
+          <div style={{ textAlign: 'center', margin: '1rem' }}>
+            <label>
+              Admin Mode:
+              <input
+                type="checkbox"
+                checked={adminMode}
+                onChange={() => setAdminMode(!adminMode)}
+              />
+            </label>
+          </div>
+        )}
     </div>
   )
 }
