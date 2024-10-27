@@ -7,24 +7,24 @@
     "start": "vite preview"
   },
   "dependencies": {
-    "@coinbase/onchainkit": "^0.31.5",
-    "@tanstack/react-query": "^5.55.4",
-    "@walletconnect/ethereum-provider": "^2.16.1",
+    "@coinbase/onchainkit": "^0.35.1",
+    "@tanstack/react-query": "^5.59.16",
+    "@walletconnect/ethereum-provider": "^2.17.1",
     "autoprefixer": "^10.4.20",
     "dotenv": "^16.4.5",
     "qrcode.react": "^3.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "viem": "^2.21.5",
+    "viem": "^2.21.35",
     "vite-plugin-node-polyfills": "^0.22.0",
-    "wagmi": "^2.12.10"
+    "wagmi": "^2.12.25"
   },
   "devDependencies": {
-    "@types/node": "^20.16.5",
-    "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "typescript": "^5.6.2",
-    "vite": "^4.5.3"
+    "@types/node": "^20.17.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "typescript": "^5.6.3",
+    "vite": "^4.5.5"
   }
 }
